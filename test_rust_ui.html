@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Rust版本UI测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        button { padding: 10px 15px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Rust版本Video Matrix Pro UI测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 检查Tauri API</h2>
+        <button onclick="testTauriAPI()">测试Tauri API连接</button>
+        <div id="tauri-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 测试功能选择</h2>
+        <button onclick="testFeatureSelection()">测试功能复选框</button>
+        <div id="feature-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 打开主应用</h2>
+        <button onclick="window.open('http://localhost:1420/', '_blank')">打开Video Matrix Pro</button>
+        <p>如果应用已运行，点击上面的按钮打开主界面。</p>
+    </div>
+    
+    <script>
+        async function testTauriAPI() {
+            const statusEl = document.getElementById('tauri-status');
+            statusEl.innerHTML = '测试中...';
+            
+            try {
+                // 检查Tauri API是否可用
+                if (window.__TAURI__) {
+                    statusEl.innerHTML = '<span class="success">✓ Tauri API可用</span>';
+                    
+                    // 测试get_actions命令
+                    const actions = await window.__TAURI__.tauri.invoke('get_actions');
+                    statusEl.innerHTML += `<br><span class="success">✓ 获取到${actions.length}个功能</span>`;
+                    
+                    // 显示前5个功能
+                    statusEl.innerHTML += `<br>示例功能: ${actions.slice(0, 5).join(', ')}...`;
+                } else {
+                    statusEl.innerHTML = '<span class="error">✗ Tauri API不可用 - 请确保应用在Tauri中运行</span>';
+                }
+            } catch (error) {
+                statusEl.innerHTML = `<span class="error">✗ 测试失败: ${error}</span>`;
+            }
+        }
+        
+        function testFeatureSelection() {
+            const statusEl = document.getElementById('feature-status');
+            
+            // 模拟检查HTML中的复选框
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            if (checkboxes.length > 0) {
+                statusEl.innerHTML = `<span class="success">✓ 找到${checkboxes.length}个复选框</span>`;
+            } else {
+                statusEl.innerHTML = '<span class="error">✗ 未找到复选框 - 页面可能未加载</span>';
+            }
+        }
+        
+        // 页面加载时自动测试Tauri API
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(testTauriAPI, 1000);
+        });
+    </script>
+</body>
+</html>

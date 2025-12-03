@@ -1,0 +1,19 @@
+# Node.js
+node_modules/
+dist/
+.DS_Store
+
+# Rust
+target/
+**/*.rs.bk
+
+# Tauri
+src-tauri/target/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Legacy
+legacy_python/

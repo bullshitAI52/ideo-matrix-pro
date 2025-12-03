@@ -1,0 +1,27 @@
+[package]
+name = "video-matrix-pro"
+version = "0.0.0"
+description = "Video Matrix Pro"
+authors = ["you"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.6", features = ["api-all"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+rand = "0.8"
+uuid = { version = "1.4", features = ["v4"] }
+filetime = "0.2"
+eframe = "0.33.2"
+egui = "0.33.2"
+chrono = "0.4.42"
+rfd = "0.14.1"
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
