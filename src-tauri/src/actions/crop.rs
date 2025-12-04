@@ -10,11 +10,18 @@ impl VideoAction for CropAction {
         "crop"
     }
 
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "crop")?;
         
         let mut rng = rand::thread_rng();
-        let ratio: f64 = rng.gen_range(0.95..0.98);
+        
+        // Get parameters from config or use defaults
+        let min_crop = config.params.get("crop_min").and_then(|v| v.as_f64()).unwrap_or(0.02);
+        let max_crop = config.params.get("crop_max").and_then(|v| v.as_f64()).unwrap_or(0.05);
+        
+        // Calculate keep ratio (e.g., crop 5% means keep 95%)
+        let crop_amount = rng.gen_range(min_crop..max_crop);
+        let ratio = 1.0 - crop_amount;
         
         let vf = format!("crop=iw*{:.3}:ih*{:.3}:(iw-ow)/2:(ih-oh)/2", ratio, ratio);
         

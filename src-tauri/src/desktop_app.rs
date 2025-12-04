@@ -42,6 +42,36 @@ struct VideoMatrixApp {
     
     // Checkbox State
     checkboxes: Vec<(String, String, bool)>, // (Display Name, ID, Checked)
+    
+    // Action Parameters
+    action_params: std::collections::HashMap<String, serde_json::Value>,
+    
+    // Settings Dialog State
+    show_settings_dialog: bool,
+    settings_action_id: String,
+    // Crop parameters
+    crop_min: f32,
+    crop_max: f32,
+    // Watermark parameters
+    watermark_position: String,
+    watermark_opacity: f32,
+    
+    // --- New Parameters ---
+    // Basic
+    rotate_angle: f32,      // Max rotation angle (degrees)
+    speed_range: f32,       // Speed variation (e.g. 0.1 for ±10%)
+    target_fps: u32,        // Target FPS (30, 60)
+    target_bitrate: String, // e.g. "10M", "15M"
+    
+    // Visual
+    sharpen_strength: f32,  // 0.0 - 5.0
+    denoise_strength: f32,  // 0.0 - 20.0 (h value)
+    blur_strength: f32,     // sigma
+    grain_strength: f32,    // 0.0 - 0.5
+    vignette_strength: f32, // angle/range
+    
+    // Effects
+    border_width: i32,      // pixels for blur border
 }
 
 // Tab Enum
@@ -164,6 +194,25 @@ impl Default for VideoMatrixApp {
             light_effect_path: String::new(),
             pip_path: String::new(),
             goods_path: String::new(),
+            action_params: std::collections::HashMap::new(),
+            show_settings_dialog: false,
+            settings_action_id: String::new(),
+            crop_min: 0.01,
+            crop_max: 0.05,
+            watermark_position: "top_right".to_string(),
+            watermark_opacity: 0.5,
+            
+            // Defaults
+            rotate_angle: 1.5,
+            speed_range: 0.1,
+            target_fps: 60,
+            target_bitrate: "15M".to_string(),
+            sharpen_strength: 1.0,
+            denoise_strength: 5.0,
+            blur_strength: 2.0,
+            grain_strength: 0.1,
+            vignette_strength: 0.5,
+            border_width: 20,
         }
     }
 }
@@ -520,6 +569,153 @@ impl eframe::App for VideoMatrixApp {
             });
         });
         
+        // Settings Dialog
+        if self.show_settings_dialog {
+            egui::Window::new("参数设置")
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    match self.settings_action_id.as_str() {
+                        "crop" => {
+                            ui.heading("随机微裁剪设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("最小比例:");
+                                ui.add(egui::DragValue::new(&mut self.crop_min).speed(0.001).clamp_range(0.0..=0.5));
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("最大比例:");
+                                ui.add(egui::DragValue::new(&mut self.crop_max).speed(0.001).clamp_range(0.0..=0.5));
+                            });
+                            ui.small("范围: 0.0 - 0.5 (例如 0.05 代表 5%)");
+                        },
+                        "rotate" => {
+                            ui.heading("微旋转设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("最大角度:");
+                                ui.add(egui::Slider::new(&mut self.rotate_angle, 0.1..=10.0).text("度"));
+                            });
+                            ui.small("视频将在此范围内随机旋转");
+                        },
+                        "speed" => {
+                            ui.heading("变速设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("变速范围:");
+                                ui.add(egui::Slider::new(&mut self.speed_range, 0.01..=0.5).text("幅度"));
+                            });
+                            ui.small("例如 0.1 代表速度在 0.9x 到 1.1x 之间随机");
+                        },
+                        "fps" => {
+                            ui.heading("帧率设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("目标帧率:");
+                                ui.selectable_value(&mut self.target_fps, 30, "30 FPS");
+                                ui.selectable_value(&mut self.target_fps, 60, "60 FPS");
+                            });
+                        },
+                        "bitrate" => {
+                            ui.heading("码率设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("目标码率:");
+                                ui.text_edit_singleline(&mut self.target_bitrate);
+                            });
+                            ui.small("例如: 10M, 15M, 5000k");
+                        },
+                        "sharpen" => {
+                            ui.heading("锐化设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("强度:");
+                                ui.add(egui::Slider::new(&mut self.sharpen_strength, 0.0..=5.0));
+                            });
+                        },
+                        "denoise" => {
+                            ui.heading("降噪设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("强度:");
+                                ui.add(egui::Slider::new(&mut self.denoise_strength, 0.0..=20.0));
+                            });
+                        },
+                        "blur" => {
+                            ui.heading("模糊设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("强度 (Sigma):");
+                                ui.add(egui::Slider::new(&mut self.blur_strength, 0.1..=10.0));
+                            });
+                        },
+                        "grain" => {
+                            ui.heading("颗粒设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("强度:");
+                                ui.add(egui::Slider::new(&mut self.grain_strength, 0.0..=0.5));
+                            });
+                        },
+                        "vignette" => {
+                            ui.heading("暗角设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("强度:");
+                                ui.add(egui::Slider::new(&mut self.vignette_strength, 0.1..=1.0));
+                            });
+                        },
+                        "border" => {
+                            ui.heading("边框设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("宽度 (像素):");
+                                ui.add(egui::DragValue::new(&mut self.border_width).speed(1).clamp_range(0..=500));
+                            });
+                            ui.small("仅在使用默认模糊边框时有效");
+                        },
+                        "watermark" => {
+                            ui.heading("水印设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("位置:");
+                                egui::ComboBox::from_id_source("wm_pos")
+                                    .selected_text(match self.watermark_position.as_str() {
+                                        "top_left" => "左上",
+                                        "top_right" => "右上",
+                                        "bottom_left" => "左下",
+                                        "bottom_right" => "右下",
+                                        "center" => "居中",
+                                        _ => "右上"
+                                    })
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut self.watermark_position, "top_left".to_string(), "左上");
+                                        ui.selectable_value(&mut self.watermark_position, "top_right".to_string(), "右上");
+                                        ui.selectable_value(&mut self.watermark_position, "bottom_left".to_string(), "左下");
+                                        ui.selectable_value(&mut self.watermark_position, "bottom_right".to_string(), "右下");
+                                        ui.selectable_value(&mut self.watermark_position, "center".to_string(), "居中");
+                                    });
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("透明度:");
+                                ui.add(egui::Slider::new(&mut self.watermark_opacity, 0.1..=1.0).text("不透明度"));
+                            });
+                        },
+                        "md5" | "clean" | "mute" => {
+                            ui.label("此功能无需参数设置");
+                        },
+                        _ => {
+                            ui.label("此功能暂无参数设置");
+                        }
+                    }
+                    
+                    ui.add_space(10.0);
+                    if ui.button("关闭").clicked() {
+                        self.show_settings_dialog = false;
+                    }
+                });
+        }
+
         // Request repaint to keep UI responsive during processing
         if self.is_processing {
             ctx.request_repaint();
@@ -533,16 +729,26 @@ impl VideoMatrixApp {
         ui.add_space(5.0);
         
         egui::Grid::new(format!("grid_{}", title))
-            .striped(true)
-            .spacing([20.0, 10.0])
+            .num_columns(4)
+            .spacing([10.0, 10.0])
             .show(ui, |ui| {
                 let mut col = 0;
                 for i in range {
-                    let (name, id, checked) = &mut self.checkboxes[i];
-                    let old_checked = *checked;
-                    if ui.checkbox(checked, name.as_str()).changed() {
-                        updates.push((id.clone(), name.clone(), old_checked, *checked));
-                    }
+                    let (name, id, _checked) = &self.checkboxes[i];
+                    let is_checked = self.selected_actions.contains(id);
+                    let mut checked = is_checked;
+                    
+                    ui.horizontal(|ui| {
+                        if ui.checkbox(&mut checked, name).changed() {
+                            updates.push((id.clone(), name.clone(), is_checked, checked));
+                        }
+                        
+                        // Add settings button for all actions
+                        if ui.button("⚙").clicked() {
+                            self.settings_action_id = id.clone();
+                            self.show_settings_dialog = true;
+                        }
+                    });
                     
                     col += 1;
                     if col >= 4 { // 4 columns for better space usage
@@ -591,6 +797,24 @@ impl VideoMatrixApp {
         if !self.light_effect_path.is_empty() { config.light_effect_path = Some(self.light_effect_path.clone()); }
         if !self.pip_path.is_empty() { config.pip_path = Some(self.pip_path.clone()); }
         if !self.goods_path.is_empty() { config.goods_path = Some(self.goods_path.clone()); }
+        
+        // Add parameters
+        config.params.as_object_mut().unwrap().insert("crop_min".to_string(), serde_json::json!(self.crop_min));
+        config.params.as_object_mut().unwrap().insert("crop_max".to_string(), serde_json::json!(self.crop_max));
+        config.params.as_object_mut().unwrap().insert("watermark_position".to_string(), serde_json::json!(self.watermark_position));
+        config.params.as_object_mut().unwrap().insert("watermark_opacity".to_string(), serde_json::json!(self.watermark_opacity));
+        
+        // New parameters
+        config.params.as_object_mut().unwrap().insert("rotate_angle".to_string(), serde_json::json!(self.rotate_angle));
+        config.params.as_object_mut().unwrap().insert("speed_range".to_string(), serde_json::json!(self.speed_range));
+        config.params.as_object_mut().unwrap().insert("target_fps".to_string(), serde_json::json!(self.target_fps));
+        config.params.as_object_mut().unwrap().insert("target_bitrate".to_string(), serde_json::json!(self.target_bitrate));
+        config.params.as_object_mut().unwrap().insert("sharpen_strength".to_string(), serde_json::json!(self.sharpen_strength));
+        config.params.as_object_mut().unwrap().insert("denoise_strength".to_string(), serde_json::json!(self.denoise_strength));
+        config.params.as_object_mut().unwrap().insert("blur_strength".to_string(), serde_json::json!(self.blur_strength));
+        config.params.as_object_mut().unwrap().insert("grain_strength".to_string(), serde_json::json!(self.grain_strength));
+        config.params.as_object_mut().unwrap().insert("vignette_strength".to_string(), serde_json::json!(self.vignette_strength));
+        config.params.as_object_mut().unwrap().insert("border_width".to_string(), serde_json::json!(self.border_width));
         
         // Create channel
         let (tx, rx) = channel();

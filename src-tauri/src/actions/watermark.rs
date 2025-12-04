@@ -14,10 +14,23 @@ impl VideoAction for WatermarkAction {
         let dst = FFUtils::get_dst(src, out_dir, "watermark")?;
         
         if let Some(path) = &config.watermark_path {
-            // Image Watermark (Top-Right corner, 10px padding, 30% opacity)
-            // overlay=W-w-10:10:format=auto, colorchannelmixer=aa=0.3
-            // Note: complex filter needed for opacity
-            let vf = format!("movie='{}'[wm];[in][wm]overlay=W-w-10:10", path);
+            // Get parameters
+            let position = config.params.get("watermark_position").and_then(|v| v.as_str()).unwrap_or("top_right");
+            let opacity = config.params.get("watermark_opacity").and_then(|v| v.as_f64()).unwrap_or(0.5);
+            
+            // Calculate overlay coordinates
+            let coord = match position {
+                "top_left" => "10:10",
+                "top_right" => "W-w-10:10",
+                "bottom_left" => "10:H-h-10",
+                "bottom_right" => "W-w-10:H-h-10",
+                "center" => "(W-w)/2:(H-h)/2",
+                _ => "W-w-10:10"
+            };
+            
+            // Apply opacity and overlay
+            // [wm]format=rgba,colorchannelmixer=aa={opacity}[wm_t];[in][wm_t]overlay={coord}
+            let vf = format!("movie='{}',format=rgba,colorchannelmixer=aa={}[wm];[in][wm]overlay={}", path, opacity, coord);
             
             FFUtils::run(&[
                 "-y",

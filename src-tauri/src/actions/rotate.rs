@@ -10,11 +10,12 @@ impl VideoAction for RotateAction {
         "rotate"
     }
 
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "rot")?;
         
         let mut rng = rand::thread_rng();
-        let degree: f64 = rng.gen_range(-1.5..1.5);
+        let max_angle = config.params.get("rotate_angle").and_then(|v| v.as_f64()).unwrap_or(1.5);
+        let degree: f64 = rng.gen_range(-max_angle..max_angle);
         
         // rotate={degree}*PI/180,scale=1.02*iw:-1
         let vf = format!("rotate={}*PI/180,scale=1.02*iw:-1", degree);

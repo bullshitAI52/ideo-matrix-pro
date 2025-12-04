@@ -9,13 +9,16 @@ impl VideoAction for BlurAction {
         "blur"
     }
 
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "blur")?;
+        
+        let sigma = config.params.get("blur_strength").and_then(|v| v.as_f64()).unwrap_or(2.0);
+        let vf = format!("gblur=sigma={}", sigma);
         
         FFUtils::run(&[
             "-y",
             "-i", src.to_str().unwrap(),
-            "-vf", "gblur=sigma=1.5",
+            "-vf", &vf,
             "-c:a", "copy",
             "-loglevel", "error",
             dst.to_str().unwrap()

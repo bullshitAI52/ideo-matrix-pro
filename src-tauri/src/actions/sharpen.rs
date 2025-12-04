@@ -9,13 +9,16 @@ impl VideoAction for SharpenAction {
         "sharpen"
     }
 
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "sharp")?;
+        
+        let strength = config.params.get("sharpen_strength").and_then(|v| v.as_f64()).unwrap_or(1.0);
+        let vf = format!("unsharp=5:5:{}:5:5:0.0", strength);
         
         FFUtils::run(&[
             "-y",
             "-i", src.to_str().unwrap(),
-            "-vf", "unsharp=5:5:1.0:5:5:0.0",
+            "-vf", &vf,
             "-c:a", "copy",
             "-loglevel", "error",
             dst.to_str().unwrap()

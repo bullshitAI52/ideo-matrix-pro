@@ -9,13 +9,15 @@ impl VideoAction for FpsAction {
         "fps_60"
     }
 
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
-        let dst = FFUtils::get_dst(src, out_dir, "60fps")?;
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
+        let dst = FFUtils::get_dst(src, out_dir, "fps")?;
+        
+        let fps = config.params.get("target_fps").and_then(|v| v.as_u64()).unwrap_or(60).to_string();
         
         FFUtils::run(&[
             "-y",
             "-i", src.to_str().unwrap(),
-            "-r", "60",
+            "-r", &fps,
             "-loglevel", "error",
             dst.to_str().unwrap()
         ])
