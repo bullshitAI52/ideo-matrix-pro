@@ -9,13 +9,24 @@ impl VideoAction for PitchAction {
         "pitch"
     }
 
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "pitch")?;
+        
+        let range = config.params.get("pitch_range").and_then(|v| v.as_f64()).unwrap_or(2.0);
+        let mut rng = rand::thread_rng();
+        use rand::Rng;
+        let semitones = rng.gen_range(-range..range);
+        
+        // Convert semitones to rate multiplier: 2^(semitones/12)
+        let rate_mult = 2.0_f64.powf(semitones / 12.0);
+        let new_rate = 44100.0 * rate_mult;
+        
+        let af = format!("asetrate={},aresample=44100", new_rate);
         
         FFUtils::run(&[
             "-y",
             "-i", src.to_str().unwrap(),
-            "-af", "asetrate=44100*1.05,aresample=44100",
+            "-af", &af,
             "-c:v", "copy",
             "-loglevel", "error",
             dst.to_str().unwrap()
