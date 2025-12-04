@@ -72,6 +72,32 @@ struct VideoMatrixApp {
     
     // Effects
     border_width: i32,      // pixels for blur border
+    
+    // --- Additional Parameters ---
+    // Basic editing
+    cut_seconds: f32,           // seconds to cut from start/end
+    mirror_direction: String,   // "horizontal", "vertical", "both"
+    strong_crop_ratio: f32,     // crop ratio for strong crop
+    
+    // Visual enhancements
+    portrait_strength: f32,     // portrait blur strength
+    color_temp_range: i32,      // color temperature adjustment range
+    pull_width: i32,            // border width for pull effect
+    progressive_ratio: f32,     // frame drop ratio
+    corner_radius: f32,         // corner blur radius
+    
+    // AI & Effects
+    zoom_range: f32,            // zoom scale range
+    dissolve_strength: f32,     // dissolve effect strength
+    scan_strength: f32,         // light scan strength
+    bounce_amplitude: f32,      // bounce effect amplitude
+    trifold_spacing: i32,       // trifold spacing in pixels
+    flash_strength: f32,        // 3D flash strength
+    lava_strength: f32,         // lava AB mode strength
+    
+    // Audio
+    noise_strength: f32,        // white noise volume
+    pitch_range: f32,           // pitch shift range in semitones
 }
 
 // Tab Enum
@@ -213,6 +239,25 @@ impl Default for VideoMatrixApp {
             grain_strength: 0.1,
             vignette_strength: 0.5,
             border_width: 20,
+            
+            // Additional defaults
+            cut_seconds: 1.0,
+            mirror_direction: "horizontal".to_string(),
+            strong_crop_ratio: 0.1,
+            portrait_strength: 2.0,
+            color_temp_range: 500,
+            pull_width: 50,
+            progressive_ratio: 0.1,
+            corner_radius: 50.0,
+            zoom_range: 0.1,
+            dissolve_strength: 0.5,
+            scan_strength: 0.5,
+            bounce_amplitude: 20.0,
+            trifold_spacing: 10,
+            flash_strength: 0.3,
+            lava_strength: 0.5,
+            noise_strength: 0.01,
+            pitch_range: 2.0,
         }
     }
 }
@@ -701,6 +746,155 @@ impl eframe::App for VideoMatrixApp {
                                 ui.add(egui::Slider::new(&mut self.watermark_opacity, 0.1..=1.0).text("不透明度"));
                             });
                         },
+                        // Basic editing
+                        "cut" => {
+                            ui.heading("首尾去秒设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("去除秒数:");
+                                ui.add(egui::Slider::new(&mut self.cut_seconds, 0.1..=10.0).text("秒"));
+                            });
+                            ui.small("从视频开头和结尾各去除指定秒数");
+                        },
+                        "mirror" => {
+                            ui.heading("镜像翻转设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("翻转方向:");
+                                ui.selectable_value(&mut self.mirror_direction, "horizontal".to_string(), "水平");
+                                ui.selectable_value(&mut self.mirror_direction, "vertical".to_string(), "垂直");
+                                ui.selectable_value(&mut self.mirror_direction, "both".to_string(), "双向");
+                            });
+                        },
+                        "strong_crop" => {
+                            ui.heading("强力裁剪设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("裁剪比例:");
+                                ui.add(egui::Slider::new(&mut self.strong_crop_ratio, 0.05..=0.3));
+                            });
+                            ui.small("裁剪比例越大，去重效果越强");
+                        },
+                        // Visual enhancements
+                        "portrait" => {
+                            ui.heading("智能柔焦设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("柔焦强度:");
+                                ui.add(egui::Slider::new(&mut self.portrait_strength, 0.5..=10.0));
+                            });
+                        },
+                        "color" => {
+                            ui.heading("随机色温设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("色温范围:");
+                                ui.add(egui::Slider::new(&mut self.color_temp_range, 100..=2000).text("K"));
+                            });
+                            ui.small("色温调整范围（开尔文）");
+                        },
+                        "pull" => {
+                            ui.heading("智能补边设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("补边宽度:");
+                                ui.add(egui::Slider::new(&mut self.pull_width, 10..=200).text("像素"));
+                            });
+                        },
+                        "progressive" => {
+                            ui.heading("渐进处理设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("抽帧比例:");
+                                ui.add(egui::Slider::new(&mut self.progressive_ratio, 0.05..=0.5));
+                            });
+                            ui.small("比例越大，抽帧越多");
+                        },
+                        "corner" => {
+                            ui.heading("边角模糊设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("模糊半径:");
+                                ui.add(egui::Slider::new(&mut self.corner_radius, 10.0..=200.0).text("像素"));
+                            });
+                        },
+                        // AI & Effects
+                        "zoom" => {
+                            ui.heading("AI随机缩放设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("缩放范围:");
+                                ui.add(egui::Slider::new(&mut self.zoom_range, 0.01..=0.3));
+                            });
+                            ui.small("例如 0.1 代表 0.9x 到 1.1x 之间随机缩放");
+                        },
+                        "dissolve" => {
+                            ui.heading("移动溶解设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("溶解强度:");
+                                ui.add(egui::Slider::new(&mut self.dissolve_strength, 0.1..=1.0));
+                            });
+                        },
+                        "scan" => {
+                            ui.heading("随机光扫设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("光扫强度:");
+                                ui.add(egui::Slider::new(&mut self.scan_strength, 0.1..=1.0));
+                            });
+                        },
+                        "bounce" => {
+                            ui.heading("弹跳效果设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("弹跳幅度:");
+                                ui.add(egui::Slider::new(&mut self.bounce_amplitude, 5.0..=100.0).text("像素"));
+                            });
+                        },
+                        "trifold" => {
+                            ui.heading("三联屏设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("屏幕间距:");
+                                ui.add(egui::Slider::new(&mut self.trifold_spacing, 0..=50).text("像素"));
+                            });
+                        },
+                        "flash" => {
+                            ui.heading("3D闪白设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("闪白强度:");
+                                ui.add(egui::Slider::new(&mut self.flash_strength, 0.1..=1.0));
+                            });
+                        },
+                        "lava" => {
+                            ui.heading("岩浆AB模式设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("效果强度:");
+                                ui.add(egui::Slider::new(&mut self.lava_strength, 0.1..=1.0));
+                            });
+                        },
+                        // Audio
+                        "noise" => {
+                            ui.heading("白噪音设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("噪音强度:");
+                                ui.add(egui::Slider::new(&mut self.noise_strength, 0.001..=0.1));
+                            });
+                            ui.small("强度越大，噪音越明显");
+                        },
+                        "pitch" => {
+                            ui.heading("音频变调设置");
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
+                                ui.label("变调范围:");
+                                ui.add(egui::Slider::new(&mut self.pitch_range, 0.5..=12.0).text("半音"));
+                            });
+                            ui.small("±半音数，例如 2 代表 -2 到 +2 半音");
+                        },
                         "md5" | "clean" | "mute" => {
                             ui.label("此功能无需参数设置");
                         },
@@ -815,6 +1009,25 @@ impl VideoMatrixApp {
         config.params.as_object_mut().unwrap().insert("grain_strength".to_string(), serde_json::json!(self.grain_strength));
         config.params.as_object_mut().unwrap().insert("vignette_strength".to_string(), serde_json::json!(self.vignette_strength));
         config.params.as_object_mut().unwrap().insert("border_width".to_string(), serde_json::json!(self.border_width));
+        
+        // Additional parameters
+        config.params.as_object_mut().unwrap().insert("cut_seconds".to_string(), serde_json::json!(self.cut_seconds));
+        config.params.as_object_mut().unwrap().insert("mirror_direction".to_string(), serde_json::json!(self.mirror_direction));
+        config.params.as_object_mut().unwrap().insert("strong_crop_ratio".to_string(), serde_json::json!(self.strong_crop_ratio));
+        config.params.as_object_mut().unwrap().insert("portrait_strength".to_string(), serde_json::json!(self.portrait_strength));
+        config.params.as_object_mut().unwrap().insert("color_temp_range".to_string(), serde_json::json!(self.color_temp_range));
+        config.params.as_object_mut().unwrap().insert("pull_width".to_string(), serde_json::json!(self.pull_width));
+        config.params.as_object_mut().unwrap().insert("progressive_ratio".to_string(), serde_json::json!(self.progressive_ratio));
+        config.params.as_object_mut().unwrap().insert("corner_radius".to_string(), serde_json::json!(self.corner_radius));
+        config.params.as_object_mut().unwrap().insert("zoom_range".to_string(), serde_json::json!(self.zoom_range));
+        config.params.as_object_mut().unwrap().insert("dissolve_strength".to_string(), serde_json::json!(self.dissolve_strength));
+        config.params.as_object_mut().unwrap().insert("scan_strength".to_string(), serde_json::json!(self.scan_strength));
+        config.params.as_object_mut().unwrap().insert("bounce_amplitude".to_string(), serde_json::json!(self.bounce_amplitude));
+        config.params.as_object_mut().unwrap().insert("trifold_spacing".to_string(), serde_json::json!(self.trifold_spacing));
+        config.params.as_object_mut().unwrap().insert("flash_strength".to_string(), serde_json::json!(self.flash_strength));
+        config.params.as_object_mut().unwrap().insert("lava_strength".to_string(), serde_json::json!(self.lava_strength));
+        config.params.as_object_mut().unwrap().insert("noise_strength".to_string(), serde_json::json!(self.noise_strength));
+        config.params.as_object_mut().unwrap().insert("pitch_range".to_string(), serde_json::json!(self.pitch_range));
         
         // Create channel
         let (tx, rx) = channel();
