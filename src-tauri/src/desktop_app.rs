@@ -239,14 +239,14 @@ impl Default for VideoMatrixApp {
             
             // Defaults
             rotate_angle: 1.5,
-            speed_range: 0.1,
+            speed_range: 0.05, // Conservative: 5% speed variation
             target_fps: 60,
             target_bitrate: "15M".to_string(),
             sharpen_strength: 1.0,
             denoise_strength: 5.0,
-            blur_strength: 2.0,
+            blur_strength: 0.5, // Conservative: very slight blur
             grain_strength: 0.1,
-            vignette_strength: 0.5,
+            vignette_strength: 0.2, // Conservative: subtle vignette
             border_width: 20,
             
             // Additional defaults
@@ -266,7 +266,7 @@ impl Default for VideoMatrixApp {
             flash_strength: 0.3,
             lava_strength: 0.5,
             noise_strength: 0.01,
-            pitch_range: 2.0,
+            pitch_range: 0.5, // Conservative: 0.5 semitones
             
             // AI defaults
             deepseek_api_key: String::new(),
@@ -693,13 +693,27 @@ impl eframe::App for VideoMatrixApp {
                                 ui.label("欢迎使用视频矩阵 Pro！本工具提供 51 种视频处理功能，帮助您快速批量处理视频。");
                                 ui.add_space(10.0);
                                 
+                                // 环境要求
+                                egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                                    ui.heading("⚠️ 环境要求");
+                                    ui.add_space(5.0);
+                                    ui.label("本软件依赖 FFmpeg 进行视频处理，请确保：");
+                                    ui.label("1. 已安装 FFmpeg");
+                                    ui.label("2. FFmpeg 已添加到系统环境变量 PATH 中");
+                                    ui.label("3. 在终端输入 'ffmpeg -version' 能正常显示版本信息");
+                                    ui.add_space(5.0);
+                                    ui.hyperlink("https://ffmpeg.org/download.html");
+                                });
+                                ui.add_space(15.0);
+                                
                                 // 基础使用
                                 ui.heading("🚀 快速开始");
-                                ui.label("1. 选择输入目录（包含要处理的视频文件）");
-                                ui.label("2. 勾选需要的功能（可多选）");
-                                ui.label("3. 点击功能旁的 ⚙️ 按钮调整参数（可选）");
-                                ui.label("4. 点击\"开始处理\"按钮");
-                                ui.label("5. 处理完成后，视频将保存在输出目录");
+                                ui.label("1. 确保已安装 FFmpeg（见上文）");
+                                ui.label("2. 选择输入目录（包含要处理的视频文件）");
+                                ui.label("3. 勾选需要的功能（可多选）");
+                                ui.label("4. 点击功能旁的 ⚙️ 按钮调整参数（可选）");
+                                ui.label("5. 点击\"开始处理\"按钮");
+                                ui.label("6. 处理完成后，视频将保存在输出目录");
                                 ui.add_space(15.0);
                                 
                                 // 功能分类说明
@@ -801,6 +815,18 @@ impl eframe::App for VideoMatrixApp {
                                         ui.label("• 混入弱白噪音：添加背景白噪音（可调强度）");
                                         ui.label("• 音频变调：随机调整音调（可调范围）");
                                         ui.label("• 仅修改时间戳：只更改元数据时间戳");
+                                    });
+                                
+                                ui.add_space(5.0);
+                                
+                                // AI 智能消重
+                                egui::CollapsingHeader::new("🤖 AI 智能消重")
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        ui.label("• 智能分析：AI 自动分析视频处理需求");
+                                        ui.label("• 自动推荐：根据需求推荐最佳功能组合");
+                                        ui.label("• 参数优化：自动设置最合适的处理参数");
+                                        ui.label("• 使用方法：切换到'AI消重'标签页，输入 Key 和需求即可");
                                     });
                                 
                                 ui.add_space(15.0);

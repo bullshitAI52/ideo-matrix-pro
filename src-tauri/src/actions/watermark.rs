@@ -30,7 +30,8 @@ impl VideoAction for WatermarkAction {
             
             // Apply opacity and overlay
             // [wm]format=rgba,colorchannelmixer=aa={opacity}[wm_t];[in][wm_t]overlay={coord}
-            let vf = format!("movie='{}',format=rgba,colorchannelmixer=aa={}[wm];[in][wm]overlay={}", path, opacity, coord);
+            let escaped_path = FFUtils::escape_path(path);
+            let vf = format!("movie='{}',format=rgba,colorchannelmixer=aa={}[wm];[in][wm]overlay={}", escaped_path, opacity, coord);
             
             FFUtils::run(&[
                 "-y",

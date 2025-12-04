@@ -17,7 +17,8 @@ impl VideoAction for StickerAction {
         
         if let Some(path) = &config.sticker_path {
             // Sticker centered
-            let vf = format!("movie='{}'[s];[in][s]overlay=(W-w)/2:(H-h)/2", path);
+            let escaped_path = FFUtils::escape_path(path);
+            let vf = format!("movie='{}'[s];[in][s]overlay=(W-w)/2:(H-h)/2", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback
@@ -33,7 +34,8 @@ impl VideoAction for MaskAction {
         
         if let Some(path) = &config.mask_path {
             // Mask overlay (full stretch or centered) - here we assume overlay
-            let vf = format!("movie='{}'[m];[in][m]overlay=0:0", path);
+            let escaped_path = FFUtils::escape_path(path);
+            let vf = format!("movie='{}'[m];[in][m]overlay=0:0", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback
@@ -49,7 +51,8 @@ impl VideoAction for PipAction {
         
         if let Some(path) = &config.pip_path {
             // Picture-in-Picture: overlay video in bottom-right corner, scaled to 25%
-            let vf = format!("movie='{}',scale=iw*0.25:ih*0.25[pip];[in][pip]overlay=W-w-10:H-h-10", path);
+            let escaped_path = FFUtils::escape_path(path);
+            let vf = format!("movie='{}',scale=iw*0.25:ih*0.25[pip];[in][pip]overlay=W-w-10:H-h-10", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback
@@ -74,7 +77,8 @@ impl VideoAction for LightEffectAction {
         
         if let Some(path) = &config.light_effect_path {
             // Light effect overlay: blend mode for additive light effect
-            let vf = format!("movie='{}'[light];[in][light]overlay=0:0:format=auto", path);
+            let escaped_path = FFUtils::escape_path(path);
+            let vf = format!("movie='{}'[light];[in][light]overlay=0:0:format=auto", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback: add brightness/glow effect
@@ -91,7 +95,8 @@ impl VideoAction for GoodsTemplateAction {
         
         if let Some(path) = &config.goods_path {
             // Goods template: overlay template on top (assuming template has transparency)
-            let vf = format!("movie='{}'[template];[in][template]overlay=0:0", path);
+            let escaped_path = FFUtils::escape_path(path);
+            let vf = format!("movie='{}'[template];[in][template]overlay=0:0", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback

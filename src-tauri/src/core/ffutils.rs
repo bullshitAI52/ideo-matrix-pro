@@ -57,4 +57,11 @@ impl FFUtils {
         let output_str = String::from_utf8(output.stdout)?;
         output_str.trim().parse::<f64>().map_err(|e| anyhow!("Failed to parse duration: {}", e))
     }
+
+    /// Escape path for use in FFmpeg filter graph
+    pub fn escape_path(path: &str) -> String {
+        path.replace('\\', "/")
+            .replace(':', "\\:")
+            .replace('\'', "\\\'")
+    }
 }
