@@ -44,9 +44,17 @@ impl VideoAction for MaskAction {
 
 impl VideoAction for PipAction {
     fn id(&self) -> &'static str { "pip" }
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "pip")?;
-        FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        
+        if let Some(path) = &config.pip_path {
+            // Picture-in-Picture: overlay video in bottom-right corner, scaled to 25%
+            let vf = format!("movie='{}',scale=iw*0.25:ih*0.25[pip];[in][pip]overlay=W-w-10:H-h-10", path);
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        } else {
+            // Fallback
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        }
     }
 }
 
@@ -61,16 +69,33 @@ impl VideoAction for EdgeEffectAction {
 
 impl VideoAction for LightEffectAction {
     fn id(&self) -> &'static str { "light_effect" }
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "light")?;
-        FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        
+        if let Some(path) = &config.light_effect_path {
+            // Light effect overlay: blend mode for additive light effect
+            let vf = format!("movie='{}'[light];[in][light]overlay=0:0:format=auto", path);
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        } else {
+            // Fallback: add brightness/glow effect
+            let vf = "eq=brightness=0.1:contrast=1.1";
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        }
     }
 }
 
 impl VideoAction for GoodsTemplateAction {
     fn id(&self) -> &'static str { "goods_template" }
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "goods")?;
-        FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        
+        if let Some(path) = &config.goods_path {
+            // Goods template: overlay template on top (assuming template has transparency)
+            let vf = format!("movie='{}'[template];[in][template]overlay=0:0", path);
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        } else {
+            // Fallback
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        }
     }
 }
