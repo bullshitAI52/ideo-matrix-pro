@@ -25,6 +25,15 @@ struct VideoMatrixApp {
     progress: f32,
     log_messages: Vec<String>,
     
+    // Material Paths
+    watermark_path: String,
+    mask_path: String,
+    sticker_path: String,
+    border_path: String,
+    light_effect_path: String,
+    pip_path: String,
+    goods_path: String,
+    
     // Thread communication
     rx: Option<Receiver<AppMessage>>,
     
@@ -40,6 +49,7 @@ struct VideoMatrixApp {
 enum Tab {
     All,       // All-in-One Panel
     Additional, // Additional Features
+    Materials,  // New Materials Tab
 }
 
 impl Default for Tab {
@@ -50,88 +60,88 @@ impl Default for Tab {
 
 impl Default for VideoMatrixApp {
     fn default() -> Self {
-        // Initialize all checkboxes (English version)
+        // Initialize all checkboxes (中文版本)
         let mut checkboxes = Vec::new();
         
         // === All-in-One Panel (Tab::All) ===
-        // Basic Editing & Parameters
+        // 基础编辑与参数
         checkboxes.extend(vec![
-            ("One-Click MD5 (Remux)".to_string(), "md5".to_string(), false),
-            ("Random Micro-Crop (1-5%)".to_string(), "crop".to_string(), false),
-            ("Trim Head/Tail (1s each)".to_string(), "cut_head_tail".to_string(), false),
-            ("Micro Rotation (±1.5°)".to_string(), "rotate".to_string(), false),
-            ("Non-linear Speed (0.9-1.1x)".to_string(), "speed".to_string(), false),
-            ("Mirror Flip".to_string(), "mirror".to_string(), false),
-            ("Force 60 FPS".to_string(), "fps_60".to_string(), false),
-            ("High Bitrate (15Mbps)".to_string(), "bitrate_hq".to_string(), false),
+            ("一键MD5 (Remux)".to_string(), "md5".to_string(), false),
+            ("随机微裁剪 (1-5%)".to_string(), "crop".to_string(), false),
+            ("首尾去秒 (各1秒)".to_string(), "cut_head_tail".to_string(), false),
+            ("微旋转 (±1.5°)".to_string(), "rotate".to_string(), false),
+            ("非线性变速 (0.9-1.1x)".to_string(), "speed".to_string(), false),
+            ("镜像翻转".to_string(), "mirror".to_string(), false),
+            ("强制60帧".to_string(), "fps_60".to_string(), false),
+            ("高码率 (15Mbps)".to_string(), "bitrate_hq".to_string(), false),
         ]);
         
-        // Visual Enhancements
+        // 视觉增强
         checkboxes.extend(vec![
-            ("Smart Sharpen".to_string(), "sharpen".to_string(), false),
-            ("Smart Sharpen (Portrait)".to_string(), "portrait".to_string(), false),
-            ("Smart Denoise".to_string(), "denoise".to_string(), false),
-            ("Smart Denoise (Clean)".to_string(), "clean".to_string(), false),
-            ("Film Grain".to_string(), "grain".to_string(), false),
-            ("Smart Soft Focus".to_string(), "blur".to_string(), false),
-            ("Random Color Temp".to_string(), "color".to_string(), false),
-            ("Cinematic Vignette".to_string(), "vignette".to_string(), false),
-            ("B&W Nostalgia".to_string(), "bw".to_string(), false),
-            ("Smart Border Fill".to_string(), "border".to_string(), false),
-            ("Smart Frame Pull".to_string(), "pull".to_string(), false),
-            ("Corner Blur Mask".to_string(), "corner".to_string(), false),
+            ("智能锐化".to_string(), "sharpen".to_string(), false),
+            ("智能锐化 (人像)".to_string(), "portrait".to_string(), false),
+            ("智能降噪".to_string(), "denoise".to_string(), false),
+            ("智能降噪 (清洁)".to_string(), "clean".to_string(), false),
+            ("胶片颗粒".to_string(), "grain".to_string(), false),
+            ("智能柔焦".to_string(), "blur".to_string(), false),
+            ("随机色温".to_string(), "color".to_string(), false),
+            ("电影暗角".to_string(), "vignette".to_string(), false),
+            ("黑白怀旧".to_string(), "bw".to_string(), false),
+            ("智能补边".to_string(), "border".to_string(), false),
+            ("智能抽帧".to_string(), "pull".to_string(), false),
+            ("边角模糊".to_string(), "corner".to_string(), false),
         ]);
         
-        // AI & AB Modes
+        // AI与AB模式
         checkboxes.extend(vec![
-            ("AI Random Zoom (ZoomPan)".to_string(), "zoom".to_string(), false),
-            ("AI Move Dissolve".to_string(), "dissolve".to_string(), false),
-            ("AI Random Light Scan".to_string(), "scan".to_string(), false),
-            ("Bounce Effect".to_string(), "bounce".to_string(), false),
-            ("Trifold Effect".to_string(), "trifold".to_string(), false),
-            ("Lava AB Mode".to_string(), "lava".to_string(), false),
-            ("3D Flash".to_string(), "flash".to_string(), false),
-            ("Progressive Process".to_string(), "progressive".to_string(), false),
-            ("AB Blend Mode".to_string(), "ab_blend".to_string(), false),
-            ("AB Glitch Effect".to_string(), "ab_glitch".to_string(), false),
-            ("AB Shake Effect".to_string(), "ab_shake".to_string(), false),
-            ("AB Chroma Offset".to_string(), "ab_chroma".to_string(), false),
-            ("AB Video Replace".to_string(), "ab_replace".to_string(), false),
-            ("Advanced AB Replace".to_string(), "ab_advanced_replace".to_string(), false),
+            ("AI随机缩放".to_string(), "zoom".to_string(), false),
+            ("AI移动溶解".to_string(), "dissolve".to_string(), false),
+            ("AI随机光扫".to_string(), "scan".to_string(), false),
+            ("弹跳效果".to_string(), "bounce".to_string(), false),
+            ("三联屏效果".to_string(), "trifold".to_string(), false),
+            ("岩浆AB模式".to_string(), "lava".to_string(), false),
+            ("3D闪白".to_string(), "flash".to_string(), false),
+            ("渐进处理".to_string(), "progressive".to_string(), false),
+            ("AB混合模式".to_string(), "ab_blend".to_string(), false),
+            ("AB故障效果".to_string(), "ab_glitch".to_string(), false),
+            ("AB抖动效果".to_string(), "ab_shake".to_string(), false),
+            ("AB色度偏移".to_string(), "ab_chroma".to_string(), false),
+            ("AB视频替换".to_string(), "ab_replace".to_string(), false),
+            ("高级AB替换".to_string(), "ab_advanced_replace".to_string(), false),
         ]);
         
-        // Audio & Others
+        // 音频与其他
         checkboxes.extend(vec![
-            ("Mute Video".to_string(), "mute".to_string(), false),
-            ("Mix Weak White Noise".to_string(), "audio_noise".to_string(), false),
-            ("Audio Pitch Shift".to_string(), "pitch".to_string(), false),
-            ("Modify Timestamp Only".to_string(), "touch".to_string(), false),
+            ("静音视频".to_string(), "mute".to_string(), false),
+            ("混入弱白噪音".to_string(), "audio_noise".to_string(), false),
+            ("音频变调".to_string(), "pitch".to_string(), false),
+            ("仅修改时间戳".to_string(), "touch".to_string(), false),
         ]);
         
-        // === Additional Features (Tab::Additional) ===
-        // Strong Deduplication
+        // === 附加功能 (Tab::Additional) ===
+        // 强力去重
         checkboxes.extend(vec![
-            ("Strong Crop (8-12%)".to_string(), "strong_crop".to_string(), false),
-            ("Add Watermark".to_string(), "watermark".to_string(), false),
-            ("Modify Encode Params".to_string(), "encode".to_string(), false),
-            ("Add Sticker".to_string(), "sticker".to_string(), false),
-            ("Mask Overlay".to_string(), "mask".to_string(), false),
-            ("Real AB Replace".to_string(), "ab_real_replace".to_string(), false),
+            ("强力裁剪 (8-12%)".to_string(), "strong_crop".to_string(), false),
+            ("添加水印".to_string(), "watermark".to_string(), false),
+            ("修改编码参数".to_string(), "encode".to_string(), false),
+            ("添加贴纸".to_string(), "sticker".to_string(), false),
+            ("蒙版叠加".to_string(), "mask".to_string(), false),
+            ("真实AB替换".to_string(), "ab_real_replace".to_string(), false),
         ]);
         
-        // OpenCV Features
+        // OpenCV功能
         checkboxes.extend(vec![
-            ("Face Detection".to_string(), "face_detection".to_string(), false),
-            ("Object Tracking".to_string(), "object_tracking".to_string(), false),
-            ("OpenCV Filter".to_string(), "opencv_filter".to_string(), false),
+            ("人脸检测".to_string(), "face_detection".to_string(), false),
+            ("物体追踪".to_string(), "object_tracking".to_string(), false),
+            ("OpenCV滤镜".to_string(), "opencv_filter".to_string(), false),
         ]);
         
-        // New Material Features
+        // 新素材功能
         checkboxes.extend(vec![
-            ("Light Effect Overlay".to_string(), "light_effect".to_string(), false),
-            ("Picture-in-Picture".to_string(), "pip".to_string(), false),
-            ("Edge Effect".to_string(), "edge_effect".to_string(), false),
-            ("Goods Template".to_string(), "goods_template".to_string(), false),
+            ("光效叠加".to_string(), "light_effect".to_string(), false),
+            ("画中画".to_string(), "pip".to_string(), false),
+            ("边缘效果".to_string(), "edge_effect".to_string(), false),
+            ("带货模板".to_string(), "goods_template".to_string(), false),
         ]);
         
         Self {
@@ -143,16 +153,49 @@ impl Default for VideoMatrixApp {
             current_tab: Tab::All,
             rx: None,
             log_messages: vec![
-                "✨ Video Matrix Pro Ready".to_string(),
-                "💡 Tip: Select input folder, check features, then click 'Start Processing'".to_string(),
+                "✨ 视频矩阵 Pro 已就绪".to_string(),
+                "💡 提示：选择输入目录，勾选功能，然后点击\"开始处理\"".to_string(),
             ],
             checkboxes,
+            watermark_path: String::new(),
+            mask_path: String::new(),
+            sticker_path: String::new(),
+            border_path: String::new(),
+            light_effect_path: String::new(),
+            pip_path: String::new(),
+            goods_path: String::new(),
         }
     }
 }
 
 impl eframe::App for VideoMatrixApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // === Custom Visuals for Better Aesthetics ===
+        let mut visuals = egui::Visuals::dark();
+        
+        // Grey Theme & High Contrast
+        visuals.window_fill = egui::Color32::from_rgb(50, 50, 50); // Lighter grey background
+        visuals.panel_fill = egui::Color32::from_rgb(50, 50, 50);
+        visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(50, 50, 50);
+        
+        // High contrast text
+        visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+        visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+        
+        visuals.selection.bg_fill = egui::Color32::from_rgb(100, 100, 100); // Grey selection
+        ctx.set_visuals(visuals);
+
+        // Increase Font Size
+        let mut style = (*ctx.style()).clone();
+        style.text_styles = [
+            (egui::TextStyle::Heading, egui::FontId::new(24.0, egui::FontFamily::Proportional)),
+            (egui::TextStyle::Body, egui::FontId::new(16.0, egui::FontFamily::Proportional)), // Base font size 16
+            (egui::TextStyle::Monospace, egui::FontId::new(14.0, egui::FontFamily::Monospace)),
+            (egui::TextStyle::Button, egui::FontId::new(16.0, egui::FontFamily::Proportional)),
+            (egui::TextStyle::Small, egui::FontId::new(12.0, egui::FontFamily::Proportional)),
+        ].into();
+        ctx.set_style(style);
+
         // Check for messages from the processing thread
         if let Some(rx) = self.rx.take() {
             let mut keep_rx = true;
@@ -163,11 +206,11 @@ impl eframe::App for VideoMatrixApp {
                     AppMessage::Finished => {
                         self.is_processing = false;
                         keep_rx = false;
-                        self.log_internal("🎉 All tasks completed!".to_string());
+                        self.log_internal("🎉 所有任务已完成！".to_string());
                         self.progress = 1.0;
                     },
                     AppMessage::Error(e) => {
-                        self.log_internal(format!("❌ Error: {}", e));
+                        self.log_internal(format!("❌ 错误: {}", e));
                         self.is_processing = false;
                         keep_rx = false;
                     }
@@ -181,61 +224,64 @@ impl eframe::App for VideoMatrixApp {
         // Bottom Panel for Controls, Progress, and Logs
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
-            .min_height(150.0)
+            .min_height(180.0)
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
-                    ui.add_space(5.0);
+                    ui.add_space(8.0);
                     
                     // Control Area
                     ui.horizontal(|ui| {
-                        ui.label(format!("Selected {} features", self.selected_actions.len()));
+                        ui.label(egui::RichText::new(format!("已选择 {} 个功能", self.selected_actions.len())).strong());
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("🛑 Stop").clicked() {
+                            if ui.add(egui::Button::new("🛑 停止").fill(egui::Color32::from_rgb(200, 50, 50))).clicked() {
                                 self.stop_processing();
                             }
                             
                             let can_start = !self.input_dir.is_empty() && !self.selected_actions.is_empty() && !self.is_processing;
-                            let start_btn = egui::Button::new("🚀 Start Processing");
+                            let start_btn = egui::Button::new("🚀 开始处理").min_size(egui::vec2(120.0, 30.0));
                             
                             // Status Text
                             if !can_start {
                                 if self.input_dir.is_empty() {
-                                    ui.colored_label(egui::Color32::RED, "⚠️ Select Input Folder");
+                                    ui.colored_label(egui::Color32::RED, "⚠️ 请选择输入目录");
                                 } else if self.selected_actions.is_empty() {
-                                    ui.colored_label(egui::Color32::RED, "⚠️ Select Features");
+                                    ui.colored_label(egui::Color32::RED, "⚠️ 请选择功能");
                                 } else if self.is_processing {
-                                    ui.colored_label(egui::Color32::YELLOW, "⏳ Processing...");
+                                    ui.colored_label(egui::Color32::YELLOW, "⏳ 处理中...");
                                 }
                             }
 
                             if can_start {
-                                if ui.add(start_btn).clicked() {
+                                if ui.add(start_btn.fill(egui::Color32::from_rgb(0, 122, 204))).clicked() {
                                     self.start_processing();
                                 }
                             } else {
                                 let response = ui.add_enabled(false, start_btn);
                                 if self.input_dir.is_empty() {
-                                    response.on_disabled_hover_text("Please select an input directory");
+                                    response.on_disabled_hover_text("请先选择输入目录");
                                 } else if self.selected_actions.is_empty() {
-                                    response.on_disabled_hover_text("Please select at least one feature");
+                                    response.on_disabled_hover_text("请至少选择一个功能");
                                 } else if self.is_processing {
-                                    response.on_disabled_hover_text("Processing is already in progress");
+                                    response.on_disabled_hover_text("正在处理中，请稍候");
                                 }
                             }
                         });
                     });
                     
-                    ui.add_space(5.0);
+                    ui.add_space(8.0);
                     
                     // Progress Bar
-                    ui.add(egui::ProgressBar::new(self.progress).show_percentage());
+                    let progress_bar = egui::ProgressBar::new(self.progress)
+                        .show_percentage()
+                        .animate(self.is_processing);
+                    ui.add(progress_bar);
                     
-                    ui.add_space(5.0);
+                    ui.add_space(8.0);
                     ui.separator();
                     
                     // Log Area
-                    ui.collapsing("📋 Processing Logs", |ui| {
-                        let text_style = egui::TextStyle::Body;
+                    ui.collapsing("📋 处理日志", |ui| {
+                        let text_style = egui::TextStyle::Monospace;
                         let row_height = ui.text_style_height(&text_style);
                         let total_rows = self.log_messages.len();
                         
@@ -244,7 +290,15 @@ impl eframe::App for VideoMatrixApp {
                             .stick_to_bottom(true)
                             .show_rows(ui, row_height, total_rows, |ui, row_range| {
                                 for row in row_range {
-                                    ui.label(&self.log_messages[row]);
+                                    let msg = &self.log_messages[row];
+                                    let color = if msg.contains("Error") || msg.contains("Failed") {
+                                        egui::Color32::LIGHT_RED
+                                    } else if msg.contains("Completed") || msg.contains("Success") {
+                                        egui::Color32::LIGHT_GREEN
+                                    } else {
+                                        egui::Color32::LIGHT_GRAY
+                                    };
+                                    ui.colored_label(color, msg);
                                 }
                             });
                     });
@@ -254,133 +308,205 @@ impl eframe::App for VideoMatrixApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // Header
-            ui.heading("Video Matrix Pro V5.4");
-            ui.colored_label(egui::Color32::GRAY, "Rust Refactored - High Performance Video Tool");
-            ui.separator();
-            
-            // Workspace
-            ui.collapsing("📁 Workspace", |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Input:");
-                    let input_response = ui.add(
-                        egui::TextEdit::singleline(&mut self.input_dir)
-                            .hint_text("Drag folder here...")
-                    );
-                    if ui.button("Browse").clicked() {
-                        // Use rfd to open folder dialog
-                        if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                            self.input_dir = path.to_string_lossy().to_string();
-                            self.log(&format!("Input directory selected: {}", self.input_dir));
-                        }
-                    }
-                });
-                
-                ui.horizontal(|ui| {
-                    ui.label("Output:");
-                    let output_response = ui.add(
-                        egui::TextEdit::singleline(&mut self.output_dir)
-                            .hint_text("Output path (optional, default: input/output)...")
-                    );
-                    if ui.button("Save To").clicked() {
-                        // Use rfd to open folder dialog
-                        if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                            self.output_dir = path.to_string_lossy().to_string();
-                            self.log(&format!("Output directory selected: {}", self.output_dir));
-                        }
-                    }
-                });
+            ui.horizontal(|ui| {
+                ui.heading(egui::RichText::new("视频矩阵 Pro").size(24.0).strong());
+                ui.label(egui::RichText::new("V5.4").size(14.0).color(egui::Color32::GRAY));
             });
+            ui.add_space(10.0);
             
-            ui.separator();
+            // Workspace Section
+            egui::Frame::group(ui.style())
+                .fill(egui::Color32::from_rgb(35, 35, 35))
+                .inner_margin(10.0)
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.heading("📁 工作目录");
+                    ui.add_space(5.0);
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("输入:");
+                        let _input_response = ui.add(
+                            egui::TextEdit::singleline(&mut self.input_dir)
+                                .hint_text("选择视频源文件夹...")
+                                .desired_width(400.0)
+                        );
+                        if ui.button("📂 浏览").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                self.input_dir = path.to_string_lossy().to_string();
+                                self.log(&format!("已选择输入目录: {}", self.input_dir));
+                            }
+                        }
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("输出:");
+                        let _output_response = ui.add(
+                            egui::TextEdit::singleline(&mut self.output_dir)
+                                .hint_text("默认：输入目录/output")
+                                .desired_width(400.0)
+                        );
+                        if ui.button("💾 保存到").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                self.output_dir = path.to_string_lossy().to_string();
+                                self.log(&format!("已选择输出目录: {}", self.output_dir));
+                            }
+                        }
+                    });
+                });
+            
+            ui.add_space(15.0);
             
             // Tab Selection
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.current_tab, Tab::All, "All-in-One Panel");
-                ui.selectable_value(&mut self.current_tab, Tab::Additional, "Additional Features");
+                ui.selectable_value(&mut self.current_tab, Tab::All, "🛠️ 全部功能");
+                ui.selectable_value(&mut self.current_tab, Tab::Additional, "✨ 附加功能");
+                ui.selectable_value(&mut self.current_tab, Tab::Materials, "🎨 素材设置");
             });
             
             ui.separator();
             
             // Scrollable Area for Features
-            egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
                 // Collect updates
                 let mut updates = Vec::new();
                 
                 // Show features based on current tab
                 match self.current_tab {
                     Tab::All => {
-                        // All-in-One Panel
-                        ui.heading("✂️ Basic Editing & Parameters");
-                        for i in 0..8 {
-                            let (name, id, checked) = &mut self.checkboxes[i];
-                            let old_checked = *checked;
-                            if ui.checkbox(checked, name.as_str()).changed() {
-                                updates.push((id.clone(), name.clone(), old_checked, *checked));
-                            }
-                        }
-                        
-                        ui.separator();
-                        ui.heading("🎨 Visual Enhancements");
-                        for i in 8..20 {
-                            let (name, id, checked) = &mut self.checkboxes[i];
-                            let old_checked = *checked;
-                            if ui.checkbox(checked, name.as_str()).changed() {
-                                updates.push((id.clone(), name.clone(), old_checked, *checked));
-                            }
-                        }
-                        
-                        ui.separator();
-                        ui.heading("🤖 AI & AB Modes");
-                        for i in 20..34 {
-                            let (name, id, checked) = &mut self.checkboxes[i];
-                            let old_checked = *checked;
-                            if ui.checkbox(checked, name.as_str()).changed() {
-                                updates.push((id.clone(), name.clone(), old_checked, *checked));
-                            }
-                        }
-                        
-                        ui.separator();
-                        ui.heading("🎵 Audio & Others");
-                        for i in 34..38 {
-                            let (name, id, checked) = &mut self.checkboxes[i];
-                            let old_checked = *checked;
-                            if ui.checkbox(checked, name.as_str()).changed() {
-                                updates.push((id.clone(), name.clone(), old_checked, *checked));
-                            }
-                        }
+                        self.render_checkbox_group(ui, "✂️ 基础编辑", 0..8, &mut updates);
+                        ui.add_space(10.0);
+                        self.render_checkbox_group(ui, "🎨 视觉增强", 8..20, &mut updates);
+                        ui.add_space(10.0);
+                        self.render_checkbox_group(ui, "🤖 AI与AB模式", 20..34, &mut updates);
+                        ui.add_space(10.0);
+                        self.render_checkbox_group(ui, "🎵 音频与其他", 34..38, &mut updates);
                     }
                     Tab::Additional => {
-                        // Additional Features
-                        ui.heading("💪 Strong Deduplication");
-                        for i in 38..44 {
-                            let (name, id, checked) = &mut self.checkboxes[i];
-                            let old_checked = *checked;
-                            if ui.checkbox(checked, name.as_str()).changed() {
-                                updates.push((id.clone(), name.clone(), old_checked, *checked));
-                            }
-                        }
+                        self.render_checkbox_group(ui, "💪 强力去重", 38..44, &mut updates);
+                        ui.add_space(10.0);
+                        self.render_checkbox_group(ui, "👁️ OpenCV功能", 44..47, &mut updates);
+                        ui.add_space(10.0);
+                        self.render_checkbox_group(ui, "✨ 新素材功能", 47..51, &mut updates);
+                    }
+                    Tab::Materials => {
+                        ui.heading("🎨 素材设置");
+                        ui.add_space(10.0);
                         
-                        ui.separator();
-                        ui.heading("👁️ OpenCV Features");
-                        for i in 44..47 {
-                            let (name, id, checked) = &mut self.checkboxes[i];
-                            let old_checked = *checked;
-                            if ui.checkbox(checked, name.as_str()).changed() {
-                                updates.push((id.clone(), name.clone(), old_checked, *checked));
-                            }
-                        }
+                        // 水印素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("水印图片:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.watermark_path).hint_text("选择图片...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("图片", &["png", "jpg", "jpeg"]).pick_file() {
+                                        self.watermark_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择水印: {}", self.watermark_path));
+                                    }
+                                }
+                            });
+                            ui.small("支持格式：PNG (推荐), JPG");
+                        });
                         
-                        ui.separator();
-                        ui.heading("✨ New Material Features");
-                        for i in 47..51 {
-                            let (name, id, checked) = &mut self.checkboxes[i];
-                            let old_checked = *checked;
-                            if ui.checkbox(checked, name.as_str()).changed() {
-                                updates.push((id.clone(), name.clone(), old_checked, *checked));
-                            }
-                        }
+                        ui.add_space(10.0);
+                        
+                        // 蒙版素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("蒙版图片:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.mask_path).hint_text("选择图片...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("图片", &["png", "jpg"]).pick_file() {
+                                        self.mask_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择蒙版: {}", self.mask_path));
+                                    }
+                                }
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        // 贴纸素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("贴纸图片:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.sticker_path).hint_text("选择图片...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("图片", &["png", "gif"]).pick_file() {
+                                        self.sticker_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择贴纸: {}", self.sticker_path));
+                                    }
+                                }
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        // 边框素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("边框图片:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.border_path).hint_text("选择图片...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("图片", &["png"]).pick_file() {
+                                        self.border_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择边框: {}", self.border_path));
+                                    }
+                                }
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        // 光效素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("光效素材:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.light_effect_path).hint_text("选择视频或图片...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("媒体", &["mp4", "mov", "png"]).pick_file() {
+                                        self.light_effect_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择光效: {}", self.light_effect_path));
+                                    }
+                                }
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        // 画中画素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("画中画视频:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.pip_path).hint_text("选择视频...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("视频", &["mp4", "mov", "avi"]).pick_file() {
+                                        self.pip_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择画中画: {}", self.pip_path));
+                                    }
+                                }
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        // 带货模板素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("带货模板:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.goods_path).hint_text("选择模板...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("媒体", &["mp4", "png"]).pick_file() {
+                                        self.goods_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择模板: {}", self.goods_path));
+                                    }
+                                }
+                            });
+                        });
                     }
                 }
+                
                 
                 // Process updates
                 for (id, name, _old_checked, new_checked) in updates {
@@ -389,7 +515,7 @@ impl eframe::App for VideoMatrixApp {
                     } else {
                         self.selected_actions.retain(|x| x != &id);
                     }
-                    self.log(&format!("{} {}", if new_checked { "Selected" } else { "Unselected" }, name));
+                    self.log(&format!("{} {}", if new_checked { "已选择" } else { "已取消" }, name));
                 }
             });
         });
@@ -402,6 +528,34 @@ impl eframe::App for VideoMatrixApp {
 }
 
 impl VideoMatrixApp {
+    fn render_checkbox_group(&mut self, ui: &mut egui::Ui, title: &str, range: std::ops::Range<usize>, updates: &mut Vec<(String, String, bool, bool)>) {
+        ui.heading(title);
+        ui.add_space(5.0);
+        
+        egui::Grid::new(format!("grid_{}", title))
+            .striped(true)
+            .spacing([20.0, 10.0])
+            .show(ui, |ui| {
+                let mut col = 0;
+                for i in range {
+                    let (name, id, checked) = &mut self.checkboxes[i];
+                    let old_checked = *checked;
+                    if ui.checkbox(checked, name.as_str()).changed() {
+                        updates.push((id.clone(), name.clone(), old_checked, *checked));
+                    }
+                    
+                    col += 1;
+                    if col >= 4 { // 4 columns for better space usage
+                        ui.end_row();
+                        col = 0;
+                    }
+                }
+                if col != 0 {
+                    ui.end_row();
+                }
+            });
+    }
+
     fn log(&mut self, message: &str) {
         self.log_internal(message.to_string());
     }
@@ -418,7 +572,7 @@ impl VideoMatrixApp {
     fn start_processing(&mut self) {
         self.is_processing = true;
         self.progress = 0.0;
-        self.log("🚀 Starting processing (Background Thread)...");
+        self.log("🚀 开始后台处理...");
         
         let input_dir = self.input_dir.clone();
         let output_dir = if self.output_dir.is_empty() {
@@ -427,6 +581,16 @@ impl VideoMatrixApp {
             self.output_dir.clone()
         };
         let selected_actions = self.selected_actions.clone();
+        
+        // Prepare config with material paths
+        let mut config = ActionConfig::default();
+        if !self.watermark_path.is_empty() { config.watermark_path = Some(self.watermark_path.clone()); }
+        if !self.mask_path.is_empty() { config.mask_path = Some(self.mask_path.clone()); }
+        if !self.sticker_path.is_empty() { config.sticker_path = Some(self.sticker_path.clone()); }
+        if !self.border_path.is_empty() { config.border_path = Some(self.border_path.clone()); }
+        if !self.light_effect_path.is_empty() { config.light_effect_path = Some(self.light_effect_path.clone()); }
+        if !self.pip_path.is_empty() { config.pip_path = Some(self.pip_path.clone()); }
+        if !self.goods_path.is_empty() { config.goods_path = Some(self.goods_path.clone()); }
         
         // Create channel
         let (tx, rx) = channel();
@@ -437,15 +601,13 @@ impl VideoMatrixApp {
         
         // Spawn thread
         thread::spawn(move || {
-            if let Err(e) = Self::process_thread(input_dir, output_dir, selected_actions, tx_clone) {
-                // We can't easily send the error back if the channel is closed, but we try
-                // In a real app we might want better error handling
+            if let Err(e) = Self::process_thread(input_dir, output_dir, selected_actions, config, tx_clone) {
                 eprintln!("Thread error: {}", e);
             }
         });
     }
 
-    fn process_thread(input_dir: String, output_dir: String, actions: Vec<String>, tx: Sender<AppMessage>) -> anyhow::Result<()> {
+    fn process_thread(input_dir: String, output_dir: String, actions: Vec<String>, config: ActionConfig, tx: Sender<AppMessage>) -> anyhow::Result<()> {
         let _ = tx.send(AppMessage::Log(format!("📂 Input: {}", input_dir)));
         let _ = tx.send(AppMessage::Log(format!("📂 Output: {}", output_dir)));
         let _ = tx.send(AppMessage::Log(format!("✅ Selected {} features", actions.len())));
@@ -472,7 +634,6 @@ impl VideoMatrixApp {
         }
         
         // Process each video file
-        let config = ActionConfig::default();
         for video_file in &video_files {
             let video_path = Path::new(video_file);
             let filename = video_path.file_name().unwrap().to_string_lossy();
@@ -500,10 +661,6 @@ impl VideoMatrixApp {
         Ok(())
     }
     
-    fn scan_video_files(&self, dir: &str) -> Vec<String> {
-        Self::scan_video_files_static(dir)
-    }
-
     fn scan_video_files_static(dir: &str) -> Vec<String> {
         let mut video_files = Vec::new();
         let video_extensions = vec!["mp4", "mov", "mkv", "avi", "wmv", "flv", "webm", "m4v"];
@@ -529,10 +686,6 @@ impl VideoMatrixApp {
         video_files
     }
     
-    fn execute_action(&self, action_id: &str, src: &Path, out_dir: &Path, config: &ActionConfig) -> anyhow::Result<()> {
-        Self::execute_action_static(action_id, src, out_dir, config)
-    }
-
     fn execute_action_static(action_id: &str, src: &Path, out_dir: &Path, config: &ActionConfig) -> anyhow::Result<()> {
         // Call corresponding action function based on action_id
         match action_id {
@@ -595,7 +748,7 @@ impl VideoMatrixApp {
         if self.is_processing {
             self.is_processing = false;
             self.rx = None; // Detach receiver
-            self.log("🛑 User stopped processing");
+            self.log("🛑 用户停止处理");
         }
     }
 }
@@ -606,13 +759,57 @@ pub fn run_desktop_app() -> Result<(), eframe::Error> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1000.0, 800.0])
             .with_min_inner_size([800.0, 600.0])
-            .with_title("Video Matrix Pro V5.4 (Rust Desktop)"),
+            .with_title("视频矩阵 Pro V5.4"),
         ..Default::default()
     };
     
     eframe::run_native(
-        "Video Matrix Pro",
+        "视频矩阵 Pro",
         options,
-        Box::new(|_cc| Ok(Box::<VideoMatrixApp>::default())),
+        Box::new(|cc| {
+            // Load Chinese fonts
+            let mut fonts = egui::FontDefinitions::default();
+            
+            // Try to load system fonts for Chinese support
+            #[cfg(target_os = "macos")]
+            let font_paths = vec![
+                "/System/Library/Fonts/PingFang.ttc",
+                "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            ];
+            
+            #[cfg(target_os = "windows")]
+            let font_paths = vec![
+                "C:\\Windows\\Fonts\\msyh.ttc",
+                "C:\\Windows\\Fonts\\simhei.ttf",
+            ];
+            
+            #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+            let font_paths: Vec<&str> = vec![];
+            
+            // Try loading fonts
+            for path in font_paths {
+                if let Ok(font_data) = std::fs::read(path) {
+                    fonts.font_data.insert(
+                        "chinese_font".to_owned(),
+                        Arc::new(egui::FontData::from_owned(font_data))
+                    );
+                    
+                    // Insert at the beginning of all font families
+                    fonts.families.entry(egui::FontFamily::Proportional)
+                        .or_default()
+                        .insert(0, "chinese_font".to_owned());
+                    
+                    fonts.families.entry(egui::FontFamily::Monospace)
+                        .or_default()
+                        .insert(0, "chinese_font".to_owned());
+                    
+                    break; // Successfully loaded, stop trying
+                }
+            }
+            
+            cc.egui_ctx.set_fonts(fonts);
+            
+            Ok(Box::<VideoMatrixApp>::default())
+        }),
     )
 }

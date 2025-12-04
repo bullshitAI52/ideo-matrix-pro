@@ -10,6 +10,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionConfig {
+    pub watermark_path: Option<String>,
+    pub mask_path: Option<String>,
+    pub sticker_path: Option<String>,
+    pub border_path: Option<String>,
+    pub light_effect_path: Option<String>,
+    pub pip_path: Option<String>,
+    pub goods_path: Option<String>,
+    
     // Generic config map for flexibility
     #[serde(flatten)]
     pub params: serde_json::Value,
@@ -18,6 +26,13 @@ pub struct ActionConfig {
 impl Default for ActionConfig {
     fn default() -> Self {
         Self {
+            watermark_path: None,
+            mask_path: None,
+            sticker_path: None,
+            border_path: None,
+            light_effect_path: None,
+            pip_path: None,
+            goods_path: None,
             params: serde_json::json!({}),
         }
     }

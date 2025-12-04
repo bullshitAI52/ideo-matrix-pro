@@ -12,17 +12,33 @@ pub struct GoodsTemplateAction;
 
 impl VideoAction for StickerAction {
     fn id(&self) -> &'static str { "sticker" }
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "sticker")?;
-        FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        
+        if let Some(path) = &config.sticker_path {
+            // Sticker centered
+            let vf = format!("movie='{}'[s];[in][s]overlay=(W-w)/2:(H-h)/2", path);
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        } else {
+            // Fallback
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        }
     }
 }
 
 impl VideoAction for MaskAction {
     fn id(&self) -> &'static str { "mask" }
-    fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
+    fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "mask")?;
-        FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        
+        if let Some(path) = &config.mask_path {
+            // Mask overlay (full stretch or centered) - here we assume overlay
+            let vf = format!("movie='{}'[m];[in][m]overlay=0:0", path);
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        } else {
+            // Fallback
+            FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-c", "copy", "-loglevel", "error", dst.to_str().unwrap()])
+        }
     }
 }
 
