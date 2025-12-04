@@ -7,21 +7,20 @@ pub struct FFUtils;
 impl FFUtils {
     /// Run an FFmpeg command
     pub fn run(args: &[&str]) -> Result<()> {
-        // In a real app, we might want to capture output or progress
-        // For now, we just run it and check status
+        // Add -y to force overwrite
+        let mut final_args = vec!["-y"];
+        final_args.extend_from_slice(args);
         
-        // On Windows, we might need to ensure ffmpeg.exe is in PATH or bundled
-        // For this refactor, we assume it's in PATH as per original requirements
-        
-        let status = Command::new("ffmpeg")
-            .args(args)
-            .status()
+        let output = Command::new("ffmpeg")
+            .args(&final_args)
+            .output()
             .map_err(|e| anyhow!("Failed to execute ffmpeg: {}", e))?;
 
-        if status.success() {
+        if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("FFmpeg command failed with status: {}", status))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("FFmpeg failed: {}", stderr))
         }
     }
 

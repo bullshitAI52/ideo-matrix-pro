@@ -1,5 +1,6 @@
 pub mod ffutils;
 pub mod factory;
+pub mod ai;
 
 pub use ffutils::FFUtils;
 pub use factory::ActionFactory;

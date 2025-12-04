@@ -6,6 +6,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::sync::Arc;
 use crate::core::{VideoAction, ActionConfig};
+use crate::core::ai::{AIService, AIResponse};
 use crate::actions::*;
 
 // Message types for communication between threads
@@ -14,6 +15,8 @@ enum AppMessage {
     Progress(f32),
     Finished,
     Error(String),
+    AIResult(AIResponse),
+    AIConnectionResult(String),
 }
 
 // App State
@@ -36,6 +39,7 @@ struct VideoMatrixApp {
     
     // Thread communication
     rx: Option<Receiver<AppMessage>>,
+    runtime: Arc<tokio::runtime::Runtime>,
     
     // Tab State
     current_tab: Tab,
@@ -98,6 +102,11 @@ struct VideoMatrixApp {
     // Audio
     noise_strength: f32,        // white noise volume
     pitch_range: f32,           // pitch shift range in semitones
+    
+    // AI Deduplication
+    deepseek_api_key: String,   // DeepSeek API key
+    deepseek_base_url: String,  // API base URL
+    ai_prompt: String,          // User's AI processing request
 }
 
 // Tab Enum
@@ -107,6 +116,7 @@ enum Tab {
     Additional, // Additional Features
     Materials,  // New Materials Tab
     Help,      // Help & Documentation
+    AIDedup,   // AI-powered deduplication
 }
 
 impl Default for Tab {
@@ -207,8 +217,6 @@ impl Default for VideoMatrixApp {
             selected_actions: Vec::new(),
             is_processing: false,
             progress: 0.0,
-            current_tab: Tab::All,
-            rx: None,
             log_messages: vec![
                 "✨ 视频矩阵 Pro 已就绪".to_string(),
                 "💡 提示：选择输入目录，勾选功能，然后点击\"开始处理\"".to_string(),
@@ -259,6 +267,11 @@ impl Default for VideoMatrixApp {
             lava_strength: 0.5,
             noise_strength: 0.01,
             pitch_range: 2.0,
+            
+            // AI defaults
+            deepseek_api_key: String::new(),
+            deepseek_base_url: "https://api.deepseek.com".to_string(),
+            ai_prompt: String::new(),
         }
     }
 }
@@ -306,6 +319,73 @@ impl eframe::App for VideoMatrixApp {
                     },
                     AppMessage::Error(e) => {
                         self.log_internal(format!("❌ 错误: {}", e));
+                        self.is_processing = false;
+                        keep_rx = false;
+                    },
+                    AppMessage::AIConnectionResult(msg) => {
+                        self.log_internal(msg);
+                        self.is_processing = false;
+                        keep_rx = false;
+                    },
+                    AppMessage::AIResult(response) => {
+                        self.log_internal("✅ AI 分析完成！正在应用推荐设置...".to_string());
+                        self.log_internal(format!("💡 AI 建议: {}", response.explanation));
+                        
+                        // Apply parameters
+                        if let Some(obj) = response.params.as_object() {
+                            for (k, v) in obj {
+                                if let Some(f) = v.as_f64() {
+                                    match k.as_str() {
+                                        "cut_seconds" => self.cut_seconds = f as f32,
+                                        "rotate_angle" => self.rotate_angle = f as f32,
+                                        "speed_range" => self.speed_range = f as f32,
+                                        "sharpen_strength" => self.sharpen_strength = f as f32,
+                                        "denoise_strength" => self.denoise_strength = f as f32,
+                                        "blur_strength" => self.blur_strength = f as f32,
+                                        "grain_strength" => self.grain_strength = f as f32,
+                                        "vignette_strength" => self.vignette_strength = f as f32,
+                                        "portrait_strength" => self.portrait_strength = f as f32,
+                                        "progressive_ratio" => self.progressive_ratio = f as f32,
+                                        "corner_radius" => self.corner_radius = f as f32,
+                                        "zoom_range" => self.zoom_range = f as f32,
+                                        "dissolve_strength" => self.dissolve_strength = f as f32,
+                                        "scan_strength" => self.scan_strength = f as f32,
+                                        "bounce_amplitude" => self.bounce_amplitude = f as f32,
+                                        "flash_strength" => self.flash_strength = f as f32,
+                                        "lava_strength" => self.lava_strength = f as f32,
+                                        "noise_strength" => self.noise_strength = f as f32,
+                                        "pitch_range" => self.pitch_range = f as f32,
+                                        "strong_crop_ratio" => self.strong_crop_ratio = f as f32,
+                                        _ => {}
+                                    }
+                                }
+                                if let Some(i) = v.as_i64() {
+                                    match k.as_str() {
+                                        "border_width" => self.border_width = i as i32,
+                                        "color_temp_range" => self.color_temp_range = i as i32,
+                                        "pull_width" => self.pull_width = i as i32,
+                                        "trifold_spacing" => self.trifold_spacing = i as i32,
+                                        "target_fps" => self.target_fps = i as u64,
+                                        _ => {}
+                                    }
+                                }
+                                if let Some(s) = v.as_str() {
+                                    match k.as_str() {
+                                        "target_bitrate" => self.target_bitrate = s.to_string(),
+                                        "mirror_direction" => self.mirror_direction = s.to_string(),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Select actions
+                        self.selected_actions.clear();
+                        for action_id in response.suggested_actions {
+                            self.selected_actions.push(action_id);
+                        }
+                        
+                        self.log_internal("✨ 设置已更新，您可以点击'开始处理'了！".to_string());
                         self.is_processing = false;
                         keep_rx = false;
                     }
@@ -457,6 +537,7 @@ impl eframe::App for VideoMatrixApp {
                 ui.selectable_value(&mut self.current_tab, Tab::Additional, "✨ 附加功能");
                 ui.selectable_value(&mut self.current_tab, Tab::Materials, "🎨 素材设置");
                 ui.selectable_value(&mut self.current_tab, Tab::Help, "📖 使用说明");
+                ui.selectable_value(&mut self.current_tab, Tab::AIDedup, "🤖 AI消重");
             });
             
             ui.separator();
@@ -741,6 +822,144 @@ impl eframe::App for VideoMatrixApp {
                                 ui.label("• 某些功能组合可能导致处理时间增加");
                                 ui.label("• 建议定期备份原始视频文件");
                             });
+                    }
+                    
+                    Tab::AIDedup => {
+                        ui.heading("🤖 AI 智能消重");
+                        ui.add_space(10.0);
+                        
+                        ui.label("使用 AI 大模型智能分析视频内容，生成个性化的处理方案");
+                        ui.add_space(15.0);
+                        
+                        // API 配置区域
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.heading("🔑 API 配置");
+                            ui.add_space(5.0);
+                            
+                            ui.horizontal(|ui| {
+                                ui.label("DeepSeek API Key:");
+                                ui.add(egui::TextEdit::singleline(&mut self.deepseek_api_key)
+                                    .hint_text("sk-xxxxxxxxxxxxxxxx")
+                                    .password(true)
+                                    .desired_width(400.0));
+                            });
+                            ui.small("在 https://platform.deepseek.com 获取 API Key");
+                            
+                            ui.add_space(5.0);
+                            
+                            ui.horizontal(|ui| {
+                                ui.label("API Base URL:");
+                                ui.add(egui::TextEdit::singleline(&mut self.deepseek_base_url)
+                                    .hint_text("https://api.deepseek.com")
+                                    .desired_width(400.0));
+                            });
+                            ui.small("通常使用默认值即可");
+                        });
+                        
+                        ui.add_space(15.0);
+                        
+                        // AI 提示词区域
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.heading("💬 AI 处理需求");
+                            ui.add_space(5.0);
+                            
+                            ui.label("描述您希望 AI 如何处理视频（例如：去重、风格化、特效等）");
+                            ui.add_space(5.0);
+                            
+                            ui.add(egui::TextEdit::multiline(&mut self.ai_prompt)
+                                .hint_text("例如：\n- 分析视频内容，自动添加合适的滤镜和特效\n- 识别重复片段并进行智能剪辑\n- 根据视频主题推荐最佳的处理参数\n- 生成创意转场效果")
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(8));
+                        });
+                        
+                        ui.add_space(15.0);
+                        
+                        // 功能说明
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.heading("📚 功能说明");
+                            ui.add_space(5.0);
+                            
+                            ui.label("• AI 会分析您的需求和视频内容");
+                            ui.label("• 自动选择合适的处理功能和参数");
+                            ui.label("• 生成个性化的视频处理方案");
+                            ui.label("• 支持批量处理和智能优化");
+                            
+                            ui.add_space(10.0);
+                            
+                            ui.label("⚠️ 注意：");
+                            ui.label("• 需要有效的 DeepSeek API Key");
+                            ui.label("• API 调用可能产生费用");
+                            ui.label("• 处理时间取决于视频数量和复杂度");
+                        });
+                        
+                        ui.add_space(15.0);
+                        
+                        // 操作按钮
+                        ui.horizontal(|ui| {
+                            if ui.button("🚀 开始 AI 处理").clicked() {
+                                if self.deepseek_api_key.is_empty() {
+                                    self.log("❌ 请先配置 DeepSeek API Key");
+                                } else if self.ai_prompt.is_empty() {
+                                    self.log("❌ 请输入 AI 处理需求");
+                                } else {
+                                    self.log("🤖 正在请求 AI 分析...");
+                                    self.is_processing = true;
+                                    
+                                    let api_key = self.deepseek_api_key.clone();
+                                    let base_url = self.deepseek_base_url.clone();
+                                    let prompt = self.ai_prompt.clone();
+                                    let (tx, rx) = channel();
+                                    self.rx = Some(rx);
+                                    let tx = tx.clone();
+                                    
+                                    self.runtime.spawn(async move {
+                                        let service = AIService::new(api_key, base_url);
+                                        match service.analyze_requirement(&prompt).await {
+                                            Ok(response) => {
+                                                let _ = tx.send(AppMessage::AIResult(response));
+                                            }
+                                            Err(e) => {
+                                                let _ = tx.send(AppMessage::Error(format!("AI 请求失败: {}", e)));
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                            
+                            if ui.button("🧪 测试连接").clicked() {
+                                if self.deepseek_api_key.is_empty() {
+                                    self.log("❌ 请先配置 API Key");
+                                } else {
+                                    self.log("🔍 正在测试 API 连接...");
+                                    self.is_processing = true;
+                                    
+                                    let api_key = self.deepseek_api_key.clone();
+                                    let base_url = self.deepseek_base_url.clone();
+                                    let (tx, rx) = channel();
+                                    self.rx = Some(rx);
+                                    let tx = tx.clone();
+                                    
+                                    self.runtime.spawn(async move {
+                                        let service = AIService::new(api_key, base_url);
+                                        match service.test_connection().await {
+                                            Ok(msg) => {
+                                                let _ = tx.send(AppMessage::AIConnectionResult(msg));
+                                            }
+                                            Err(e) => {
+                                                let _ = tx.send(AppMessage::Error(format!("连接失败: {}", e)));
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                            
+                            if ui.button("🔄 重置配置").clicked() {
+                                self.deepseek_api_key.clear();
+                                self.deepseek_base_url = "https://api.deepseek.com".to_string();
+                                self.ai_prompt.clear();
+                                self.log("✅ 已重置 AI 配置");
+                            }
+                        });
                     }
                 }
                 
