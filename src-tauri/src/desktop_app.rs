@@ -106,6 +106,7 @@ enum Tab {
     All,       // All-in-One Panel
     Additional, // Additional Features
     Materials,  // New Materials Tab
+    Help,      // Help & Documentation
 }
 
 impl Default for Tab {
@@ -455,6 +456,7 @@ impl eframe::App for VideoMatrixApp {
                 ui.selectable_value(&mut self.current_tab, Tab::All, "🛠️ 全部功能");
                 ui.selectable_value(&mut self.current_tab, Tab::Additional, "✨ 附加功能");
                 ui.selectable_value(&mut self.current_tab, Tab::Materials, "🎨 素材设置");
+                ui.selectable_value(&mut self.current_tab, Tab::Help, "📖 使用说明");
             });
             
             ui.separator();
@@ -598,6 +600,147 @@ impl eframe::App for VideoMatrixApp {
                                 }
                             });
                         });
+                    }
+                    
+                    Tab::Help => {
+                        ui.heading("📖 使用说明");
+                        ui.add_space(10.0);
+                        
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false; 2])
+                            .show(ui, |ui| {
+                                ui.label("欢迎使用视频矩阵 Pro！本工具提供 51 种视频处理功能，帮助您快速批量处理视频。");
+                                ui.add_space(10.0);
+                                
+                                // 基础使用
+                                ui.heading("🚀 快速开始");
+                                ui.label("1. 选择输入目录（包含要处理的视频文件）");
+                                ui.label("2. 勾选需要的功能（可多选）");
+                                ui.label("3. 点击功能旁的 ⚙️ 按钮调整参数（可选）");
+                                ui.label("4. 点击\"开始处理\"按钮");
+                                ui.label("5. 处理完成后，视频将保存在输出目录");
+                                ui.add_space(15.0);
+                                
+                                // 功能分类说明
+                                ui.heading("📚 功能详解");
+                                ui.add_space(5.0);
+                                
+                                // 基础编辑
+                                egui::CollapsingHeader::new("🔧 基础编辑 (8个)")
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        ui.label("• 一键MD5：修改视频元数据，添加唯一标识");
+                                        ui.label("• 随机微裁剪：随机裁剪视频边缘（可调节比例）");
+                                        ui.label("• 首尾去秒：去除视频开头和结尾的指定秒数");
+                                        ui.label("• 微旋转：随机旋转视频（可调节角度范围）");
+                                        ui.label("• 非线性变速：随机调整播放速度（可调节范围）");
+                                        ui.label("• 镜像翻转：水平/垂直/双向翻转视频");
+                                        ui.label("• 强制60帧：将视频转换为指定帧率");
+                                        ui.label("• 高码率：提升视频码率，增强画质");
+                                    });
+                                
+                                ui.add_space(5.0);
+                                
+                                // 视觉增强
+                                egui::CollapsingHeader::new("✨ 视觉增强 (12个)")
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        ui.label("• 智能锐化：增强视频清晰度（可调节强度）");
+                                        ui.label("• 智能锐化(人像)：针对人像优化的锐化");
+                                        ui.label("• 智能降噪：减少视频噪点（可调节强度）");
+                                        ui.label("• 智能降噪(清洁)：更强的降噪效果");
+                                        ui.label("• 胶片颗粒：添加电影感颗粒效果（可调节强度）");
+                                        ui.label("• 智能柔焦：柔化画面，营造梦幻效果");
+                                        ui.label("• 随机色温：调整视频色温");
+                                        ui.label("• 电影暗角：添加四周暗角效果（可调节强度）");
+                                        ui.label("• 黑白怀旧：转换为黑白效果");
+                                        ui.label("• 智能补边：为视频添加边框");
+                                        ui.label("• 智能抽帧：降低帧率，减小文件大小");
+                                        ui.label("• 边角模糊：模糊视频四角");
+                                    });
+                                
+                                ui.add_space(5.0);
+                                
+                                // 强力去重
+                                egui::CollapsingHeader::new("🔥 强力去重 (6个)")
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        ui.label("• 强力裁剪：大幅度裁剪，强力去重");
+                                        ui.label("• 添加水印：叠加水印图片（可调位置和透明度）");
+                                        ui.label("• 修改编码参数：更改视频编码设置");
+                                        ui.label("• 添加贴纸：叠加贴纸素材");
+                                        ui.label("• 蒙版叠加：应用蒙版效果");
+                                        ui.label("• 真实AB替换：高级AB模式替换");
+                                    });
+                                
+                                ui.add_space(5.0);
+                                
+                                // AI与AB模式
+                                egui::CollapsingHeader::new("🤖 AI与AB模式 (14个)")
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        ui.label("• AI随机缩放：智能缩放视频");
+                                        ui.label("• AI移动溶解：动态溶解效果");
+                                        ui.label("• AI随机光扫：光线扫描效果");
+                                        ui.label("• 弹跳效果：视频弹跳动画");
+                                        ui.label("• 三联屏效果：分屏显示");
+                                        ui.label("• 岩浆AB模式：岩浆风格特效");
+                                        ui.label("• 3D闪白：3D闪光效果");
+                                        ui.label("• 渐进处理：渐进式视频处理");
+                                        ui.label("• AB混合模式：混合两个视频");
+                                        ui.label("• AB故障效果：故障艺术风格");
+                                        ui.label("• AB抖动效果：抖动特效");
+                                        ui.label("• AB色度偏移：色彩偏移效果");
+                                        ui.label("• AB视频替换：替换视频片段");
+                                        ui.label("• 高级AB替换：更高级的替换模式");
+                                    });
+                                
+                                ui.add_space(5.0);
+                                
+                                // 素材叠加
+                                egui::CollapsingHeader::new("🎨 素材叠加 (7个)")
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        ui.label("• 水印：在\"素材设置\"中选择水印图片");
+                                        ui.label("• 贴纸：在\"素材设置\"中选择贴纸图片");
+                                        ui.label("• 蒙版：在\"素材设置\"中选择蒙版图片");
+                                        ui.label("• 边框：在\"素材设置\"中选择边框图片");
+                                        ui.label("• 光效：在\"素材设置\"中选择光效素材");
+                                        ui.label("• 画中画：在\"素材设置\"中选择叠加视频");
+                                        ui.label("• 带货模板：在\"素材设置\"中选择模板");
+                                    });
+                                
+                                ui.add_space(5.0);
+                                
+                                // 音频处理
+                                egui::CollapsingHeader::new("🎵 音频处理 (4个)")
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        ui.label("• 静音视频：移除所有音频");
+                                        ui.label("• 混入弱白噪音：添加背景白噪音（可调强度）");
+                                        ui.label("• 音频变调：随机调整音调（可调范围）");
+                                        ui.label("• 仅修改时间戳：只更改元数据时间戳");
+                                    });
+                                
+                                ui.add_space(15.0);
+                                
+                                // 使用技巧
+                                ui.heading("💡 使用技巧");
+                                ui.label("• 可以同时勾选多个功能，按顺序依次处理");
+                                ui.label("• 点击 ⚙️ 按钮可精细调节每个功能的参数");
+                                ui.label("• 建议先用少量视频测试效果，再批量处理");
+                                ui.label("• 处理过程中可查看\"日志\"标签页了解进度");
+                                ui.label("• 素材功能需要先在\"素材设置\"中选择对应文件");
+                                
+                                ui.add_space(15.0);
+                                
+                                // 注意事项
+                                ui.heading("⚠️ 注意事项");
+                                ui.label("• 确保有足够的磁盘空间存储输出文件");
+                                ui.label("• 处理大量视频时可能需要较长时间");
+                                ui.label("• 某些功能组合可能导致处理时间增加");
+                                ui.label("• 建议定期备份原始视频文件");
+                            });
                     }
                 }
                 
