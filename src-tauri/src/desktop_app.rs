@@ -221,6 +221,11 @@ impl Default for VideoMatrixApp {
                 "✨ 视频矩阵 Pro 已就绪".to_string(),
                 "💡 提示：选择输入目录，勾选功能，然后点击\"开始处理\"".to_string(),
             ],
+            
+            rx: None,
+            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap()),
+            current_tab: Tab::All,
+            
             checkboxes,
             watermark_path: String::new(),
             mask_path: String::new(),
@@ -365,7 +370,7 @@ impl eframe::App for VideoMatrixApp {
                                         "color_temp_range" => self.color_temp_range = i as i32,
                                         "pull_width" => self.pull_width = i as i32,
                                         "trifold_spacing" => self.trifold_spacing = i as i32,
-                                        "target_fps" => self.target_fps = i as u64,
+                                        "target_fps" => self.target_fps = i as u32,
                                         _ => {}
                                     }
                                 }
