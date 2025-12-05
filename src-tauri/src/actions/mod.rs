@@ -41,6 +41,7 @@ pub mod ab_advanced_replace;
 pub mod ab_real_replace;
 pub mod watermark;
 pub mod material_overlay;
+pub mod mask_video;
 pub mod ai_opencv;
 
 pub use crop::CropAction;
@@ -85,5 +86,6 @@ pub use ab_replace::AbReplaceAction;
 pub use ab_advanced_replace::AbAdvancedReplaceAction;
 pub use ab_real_replace::AbRealReplaceAction;
 pub use watermark::WatermarkAction;
+pub use mask_video::MaskVideoAction;
 pub use material_overlay::{StickerAction, MaskAction, PipAction, EdgeEffectAction, LightEffectAction, GoodsTemplateAction};
 pub use ai_opencv::{FaceDetectionAction, ObjectTrackingAction, OpencvFilterAction};

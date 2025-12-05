@@ -18,6 +18,7 @@ pub struct ActionConfig {
     pub light_effect_path: Option<String>,
     pub pip_path: Option<String>,
     pub goods_path: Option<String>,
+    pub mask_video_path: Option<String>,
     
     // Generic config map for flexibility
     #[serde(flatten)]
@@ -34,6 +35,7 @@ impl Default for ActionConfig {
             light_effect_path: None,
             pip_path: None,
             goods_path: None,
+            mask_video_path: None,
             params: serde_json::json!({}),
         }
     }

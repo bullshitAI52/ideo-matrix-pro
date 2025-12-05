@@ -16,7 +16,7 @@ impl VideoAction for CropAction {
         let mut rng = rand::thread_rng();
         
         // Get parameters from config or use defaults
-        let min_crop = config.params.get("crop_min").and_then(|v| v.as_f64()).unwrap_or(0.02);
+        let min_crop = config.params.get("crop_min").and_then(|v| v.as_f64()).unwrap_or(0.01);
         let max_crop = config.params.get("crop_max").and_then(|v| v.as_f64()).unwrap_or(0.05);
         
         // Calculate keep ratio (e.g., crop 5% means keep 95%)

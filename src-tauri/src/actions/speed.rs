@@ -14,7 +14,7 @@ impl VideoAction for SpeedAction {
         let dst = FFUtils::get_dst(src, out_dir, "spd")?;
         
         let mut rng = rand::thread_rng();
-        let range = config.params.get("speed_range").and_then(|v| v.as_f64()).unwrap_or(0.07);
+        let range = config.params.get("speed_range").and_then(|v| v.as_f64()).unwrap_or(0.05);
         let speed: f64 = rng.gen_range((1.0 - range)..(1.0 + range));
         
         let setpts = format!("setpts={:.4}*PTS", 1.0/speed);

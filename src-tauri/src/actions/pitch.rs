@@ -12,7 +12,7 @@ impl VideoAction for PitchAction {
     fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "pitch")?;
         
-        let range = config.params.get("pitch_range").and_then(|v| v.as_f64()).unwrap_or(2.0);
+        let range = config.params.get("pitch_range").and_then(|v| v.as_f64()).unwrap_or(0.5);
         let mut rng = rand::thread_rng();
         use rand::Rng;
         let semitones = rng.gen_range(-range..range);

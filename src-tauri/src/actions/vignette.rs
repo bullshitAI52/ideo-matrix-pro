@@ -12,7 +12,7 @@ impl VideoAction for VignetteAction {
     fn execute(&self, src: &Path, out_dir: &Path, config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "vig")?;
         
-        let strength = config.params.get("vignette_strength").and_then(|v| v.as_f64()).unwrap_or(0.5);
+        let strength = config.params.get("vignette_strength").and_then(|v| v.as_f64()).unwrap_or(0.2);
         // strength 0.0-1.0 maps to angle 0 to PI/2
         let angle = strength * std::f64::consts::PI / 2.0;
         let vf = format!("vignette={:.3}", angle);

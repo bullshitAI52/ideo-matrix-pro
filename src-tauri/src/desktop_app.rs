@@ -36,6 +36,7 @@ struct VideoMatrixApp {
     light_effect_path: String,
     pip_path: String,
     goods_path: String,
+    mask_video_path: String,
     
     // Thread communication
     rx: Option<Receiver<AppMessage>>,
@@ -107,6 +108,11 @@ struct VideoMatrixApp {
     deepseek_api_key: String,   // DeepSeek API key
     deepseek_base_url: String,  // API base URL
     ai_prompt: String,          // User's AI processing request
+    
+    // Mask Video
+    mask_video_opacity: f32,    // mask video opacity (0.0-1.0)
+    mask_video_blend_mode: String, // blend mode (multiply/screen/overlay/add)
+    mask_video_scale: String,   // scale mode (stretch/crop/fit)
 }
 
 // Tab Enum
@@ -137,7 +143,7 @@ impl Default for VideoMatrixApp {
             ("随机微裁剪 (1-5%)".to_string(), "crop".to_string(), false),
             ("首尾去秒 (各1秒)".to_string(), "cut_head_tail".to_string(), false),
             ("微旋转 (±1.5°)".to_string(), "rotate".to_string(), false),
-            ("非线性变速 (0.9-1.1x)".to_string(), "speed".to_string(), false),
+            ("非线性变速 (0.95-1.05x)".to_string(), "speed".to_string(), false),
             ("镜像翻转".to_string(), "mirror".to_string(), false),
             ("强制60帧".to_string(), "fps_60".to_string(), false),
             ("高码率 (15Mbps)".to_string(), "bitrate_hq".to_string(), false),
@@ -193,6 +199,7 @@ impl Default for VideoMatrixApp {
             ("修改编码参数".to_string(), "encode".to_string(), false),
             ("添加贴纸".to_string(), "sticker".to_string(), false),
             ("蒙版叠加".to_string(), "mask".to_string(), false),
+            ("蒙版视频叠加".to_string(), "mask_video".to_string(), false),
             ("真实AB替换".to_string(), "ab_real_replace".to_string(), false),
         ]);
         
@@ -234,6 +241,7 @@ impl Default for VideoMatrixApp {
             light_effect_path: String::new(),
             pip_path: String::new(),
             goods_path: String::new(),
+            mask_video_path: String::new(),
             action_params: std::collections::HashMap::new(),
             show_settings_dialog: false,
             settings_action_id: String::new(),
@@ -277,6 +285,11 @@ impl Default for VideoMatrixApp {
             deepseek_api_key: String::new(),
             deepseek_base_url: "https://api.deepseek.com".to_string(),
             ai_prompt: String::new(),
+            
+            // Mask video defaults
+            mask_video_opacity: 0.8,
+            mask_video_blend_mode: "multiply".to_string(),
+            mask_video_scale: "stretch".to_string(),
         }
     }
 }
@@ -602,6 +615,22 @@ impl eframe::App for VideoMatrixApp {
                                     if let Some(path) = rfd::FileDialog::new().add_filter("图片", &["png", "jpg"]).pick_file() {
                                         self.mask_path = path.to_string_lossy().to_string();
                                         self.log(&format!("已选择蒙版: {}", self.mask_path));
+                                    }
+                                }
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        // 蒙版视频素材
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.label("蒙版视频:");
+                            ui.horizontal(|ui| {
+                                ui.add(egui::TextEdit::singleline(&mut self.mask_video_path).hint_text("选择视频...").desired_width(400.0));
+                                if ui.button("浏览").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().add_filter("视频", &["mp4", "mov", "avi"]).pick_file() {
+                                        self.mask_video_path = path.to_string_lossy().to_string();
+                                        self.log(&format!("已选择蒙版视频: {}", self.mask_video_path));
                                     }
                                 }
                             });
@@ -1139,6 +1168,51 @@ impl eframe::App for VideoMatrixApp {
                                 ui.add(egui::Slider::new(&mut self.watermark_opacity, 0.1..=1.0).text("不透明度"));
                             });
                         },
+                        "mask_video" => {
+                            ui.heading("蒙版视频设置");
+                            ui.add_space(5.0);
+                            
+                            ui.horizontal(|ui| {
+                                ui.label("透明度:");
+                                ui.add(egui::Slider::new(&mut self.mask_video_opacity, 0.0..=1.0).text("强度"));
+                            });
+                            
+                            ui.add_space(5.0);
+                            
+                            ui.horizontal(|ui| {
+                                egui::ComboBox::from_id_source("mask_blend")
+                                    .selected_text(&self.mask_video_blend_mode)
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut self.mask_video_blend_mode, "multiply".to_string(), "正片叠底 (Multiply)");
+                                        ui.selectable_value(&mut self.mask_video_blend_mode, "screen".to_string(), "滤色 (Screen)");
+                                        ui.selectable_value(&mut self.mask_video_blend_mode, "overlay".to_string(), "叠加 (Overlay)");
+                                        ui.selectable_value(&mut self.mask_video_blend_mode, "add".to_string(), "相加 (Add)");
+                                        ui.selectable_value(&mut self.mask_video_blend_mode, "subtract".to_string(), "相减 (Subtract)");
+                                        ui.selectable_value(&mut self.mask_video_blend_mode, "difference".to_string(), "差值 (Difference)");
+                                    });
+                            });
+                            
+                            ui.add_space(5.0);
+                            
+                            ui.horizontal(|ui| {
+                                ui.label("缩放模式:");
+                                egui::ComboBox::from_id_source("mask_scale")
+                                    .selected_text(&self.mask_video_scale)
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut self.mask_video_scale, "stretch".to_string(), "拉伸填充");
+                                        ui.selectable_value(&mut self.mask_video_scale, "fit".to_string(), "等比缩放");
+                                        ui.selectable_value(&mut self.mask_video_scale, "crop".to_string(), "裁剪填充");
+                                    });
+                            });
+                            
+                            ui.add_space(5.0);
+                            
+                            ui.label("💡 提示:");
+                            ui.label("• 正片叠底：适合暗色蒙版");
+                            ui.label("• 滤色：适合亮色蒙版");
+                            ui.label("• 叠加：平衡的混合效果");
+                            ui.label("• 相加：增强亮度");
+                        },
                         // Basic editing
                         "cut" => {
                             ui.heading("首尾去秒设置");
@@ -1384,6 +1458,7 @@ impl VideoMatrixApp {
         if !self.light_effect_path.is_empty() { config.light_effect_path = Some(self.light_effect_path.clone()); }
         if !self.pip_path.is_empty() { config.pip_path = Some(self.pip_path.clone()); }
         if !self.goods_path.is_empty() { config.goods_path = Some(self.goods_path.clone()); }
+        if !self.mask_video_path.is_empty() { config.mask_video_path = Some(self.mask_video_path.clone()); }
         
         // Add parameters
         config.params.as_object_mut().unwrap().insert("crop_min".to_string(), serde_json::json!(self.crop_min));
@@ -1563,6 +1638,7 @@ impl VideoMatrixApp {
             "ab_real_replace" => AbRealReplaceAction.execute(src, out_dir, config),
             "sticker" => StickerAction.execute(src, out_dir, config),
             "mask" => MaskAction.execute(src, out_dir, config),
+            "mask_video" => MaskVideoAction.execute(src, out_dir, config),
             "face_detection" => FaceDetectionAction.execute(src, out_dir, config),
             "object_tracking" => ObjectTrackingAction.execute(src, out_dir, config),
             "opencv_filter" => OpencvFilterAction.execute(src, out_dir, config),
