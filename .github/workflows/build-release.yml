@@ -56,22 +56,29 @@ jobs:
       - name: Prepare FFmpeg for bundling
         shell: pwsh
         run: |
-          Write-Host "Preparing FFmpeg binaries..."
+          Write-Host "Preparing FFmpeg binaries for Sidecar..."
           
-          # 直接复制到 src-tauri 根目录
-          $tauriDir = Join-Path (Get-Location) "src-tauri"
+          # 确保目录存在
+          $binDir = Join-Path (Get-Location) "src-tauri\binaries"
+          if (-not (Test-Path $binDir)) {
+            New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+          }
           
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "$tauriDir\ffmpeg.exe" -Force
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "$tauriDir\ffprobe.exe" -Force
+          # 复制并重命名为 Sidecar 格式
+          # Windows: ffmpeg-x86_64-pc-windows-msvc.exe
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "$binDir\ffmpeg-x86_64-pc-windows-msvc.exe" -Force
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "$binDir\ffprobe-x86_64-pc-windows-msvc.exe" -Force
           
-          Write-Host "Verifying files in src-tauri:"
-          Get-ChildItem $tauriDir
+          Write-Host "Verifying Sidecar files:"
+          Get-ChildItem $binDir | Select-Object FullName, Length
+          
+          # 同时也复制一份不带后缀的，以防万一
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "$binDir\ffmpeg.exe" -Force
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "$binDir\ffprobe.exe" -Force
 
       - name: Build Tauri app
         run: |
           echo "Starting Tauri build..."
-          # 再次确认文件存在
-          ls -l src-tauri/ffmpeg.exe
           npm run tauri build -- --verbose
         env:
           RUST_BACKTRACE: 1
@@ -120,11 +127,13 @@ jobs:
           mkdir -p src-tauri/binaries
           
           echo "Copying FFmpeg binaries..."
-          cp $(which ffmpeg) src-tauri/ffmpeg
-          cp $(which ffprobe) src-tauri/ffprobe
+          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-x86_64-apple-darwin
+          cp $(which ffprobe) src-tauri/binaries/ffprobe-x86_64-apple-darwin
+          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-aarch64-apple-darwin
+          cp $(which ffprobe) src-tauri/binaries/ffprobe-aarch64-apple-darwin
           
           echo "Verifying files..."
-          ls -lh src-tauri/
+          ls -lh src-tauri/binaries/
 
       - name: Install frontend dependencies
         run: npm install

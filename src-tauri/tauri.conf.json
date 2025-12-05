@@ -75,11 +75,9 @@
                 "icons/icon.icns",
                 "icons/icon.ico"
             ],
-            "resources": [
-                "ffmpeg.exe",
-                "ffprobe.exe",
-                "ffmpeg",
-                "ffprobe"
+            "externalBin": [
+                "binaries/ffmpeg",
+                "binaries/ffprobe"
             ]
         },
         "security": {
