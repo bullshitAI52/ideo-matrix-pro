@@ -8,7 +8,7 @@
     },
     "package": {
         "productName": "video-matrix-pro-zwm",
-        "version": "5.5.12"
+        "version": "5.5.13"
     },
     "tauri": {
         "allowlist": {

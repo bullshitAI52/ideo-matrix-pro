@@ -117,6 +117,12 @@ struct VideoMatrixApp {
     
     // 单个视频功能叠加模式
     single_video_mode: bool,    // true: 所有功能叠加到单个视频; false: 每个功能生成独立视频
+
+    // UI Customization
+    show_ui_settings: bool,
+    ui_font_scale: f32,
+    ui_bg_color: [u8; 3],       // RGB
+    ui_bg_alpha: u8,            // Alpha 0-255
 }
 
 // Tab Enum
@@ -128,6 +134,8 @@ enum Tab {
     Help,      // Help & Documentation
     AIDedup,   // AI-powered deduplication
     ProcessingMode, // 处理模式设置
+    Presets,   // Configuration presets
+    Preview,   // Effect preview
 }
 
 impl Default for Tab {
@@ -298,6 +306,12 @@ impl Default for VideoMatrixApp {
             
             // 单个视频模式默认关闭
             single_video_mode: false,
+
+            // UI Defaults
+            show_ui_settings: false,
+            ui_font_scale: 2.0,
+            ui_bg_color: [50, 50, 50],
+            ui_bg_alpha: 255,
         }
     }
 }
@@ -307,10 +321,19 @@ impl eframe::App for VideoMatrixApp {
         // === Custom Visuals for Better Aesthetics ===
         let mut visuals = egui::Visuals::dark();
         
-        // Grey Theme & High Contrast
-        visuals.window_fill = egui::Color32::from_rgb(50, 50, 50); // Lighter grey background
-        visuals.panel_fill = egui::Color32::from_rgb(50, 50, 50);
-        visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(50, 50, 50);
+        // Apply Global UI Settings
+        ctx.set_pixels_per_point(self.ui_font_scale);
+        
+        let bg_color = egui::Color32::from_rgba_premultiplied(
+            self.ui_bg_color[0], 
+            self.ui_bg_color[1], 
+            self.ui_bg_color[2], 
+            self.ui_bg_alpha
+        );
+        
+        visuals.window_fill = bg_color;
+        visuals.panel_fill = bg_color;
+        visuals.widgets.noninteractive.bg_fill = bg_color;
         
         // High contrast text
         visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
@@ -318,17 +341,6 @@ impl eframe::App for VideoMatrixApp {
         
         visuals.selection.bg_fill = egui::Color32::from_rgb(100, 100, 100); // Grey selection
         ctx.set_visuals(visuals);
-
-        // Increase Font Size
-        let mut style = (*ctx.style()).clone();
-        style.text_styles = [
-            (egui::TextStyle::Heading, egui::FontId::new(24.0, egui::FontFamily::Proportional)),
-            (egui::TextStyle::Body, egui::FontId::new(16.0, egui::FontFamily::Proportional)), // Base font size 16
-            (egui::TextStyle::Monospace, egui::FontId::new(14.0, egui::FontFamily::Monospace)),
-            (egui::TextStyle::Button, egui::FontId::new(16.0, egui::FontFamily::Proportional)),
-            (egui::TextStyle::Small, egui::FontId::new(12.0, egui::FontFamily::Proportional)),
-        ].into();
-        ctx.set_style(style);
 
         // Check for messages from the processing thread
         if let Some(rx) = self.rx.take() {
@@ -508,12 +520,53 @@ impl eframe::App for VideoMatrixApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Header
+            // Header with Settings Button
             ui.horizontal(|ui| {
                 ui.heading(egui::RichText::new("视频矩阵 Pro").size(24.0).strong());
-                ui.label(egui::RichText::new("v5.5.12").size(14.0).color(egui::Color32::GRAY));
+                ui.label(egui::RichText::new("作者: zwm").size(16.0).color(egui::Color32::LIGHT_BLUE));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("⚙️ UI设置").clicked() {
+                        self.show_ui_settings = true;
+                    }
+                    ui.label(egui::RichText::new("v5.5.13").size(14.0).color(egui::Color32::GRAY));
+                });
             });
             ui.add_space(10.0);
+            
+            // UI Settings Dialog
+            if self.show_ui_settings {
+                egui::Window::new("🎨 界面个性化设置")
+                    .collapsible(false)
+                    .resizable(false)
+                    .pivot(egui::Align2::RIGHT_TOP)
+                    .show(ctx, |ui| {
+                        ui.heading("界面调整");
+                        ui.add_space(8.0);
+                        
+                        ui.horizontal(|ui| {
+                            ui.label("字体大小:");
+                            ui.add(egui::Slider::new(&mut self.ui_font_scale, 0.5..=3.0).text("倍率"));
+                        });
+                        
+                        ui.add_space(8.0);
+                        
+                        ui.horizontal(|ui| {
+                            ui.label("背景透明度:");
+                            ui.add(egui::Slider::new(&mut self.ui_bg_alpha, 50..=255).text("Alpha"));
+                        });
+                        
+                        ui.add_space(8.0);
+                        
+                        ui.collapsing("背景颜色", |ui| {
+                            ui.color_edit_button_srgb(&mut self.ui_bg_color);
+                        });
+                        
+                        ui.add_space(15.0);
+                        if ui.button("关闭").clicked() {
+                            self.show_ui_settings = false;
+                        }
+                    });
+            }
             
             // Workspace Section
             egui::Frame::group(ui.style())
@@ -562,9 +615,11 @@ impl eframe::App for VideoMatrixApp {
                 ui.selectable_value(&mut self.current_tab, Tab::All, "🛠️ 全部功能");
                 ui.selectable_value(&mut self.current_tab, Tab::Additional, "✨ 附加功能");
                 ui.selectable_value(&mut self.current_tab, Tab::Materials, "🎨 素材设置");
-                ui.selectable_value(&mut self.current_tab, Tab::Help, "📖 使用说明");
                 ui.selectable_value(&mut self.current_tab, Tab::AIDedup, "🤖 AI消重");
                 ui.selectable_value(&mut self.current_tab, Tab::ProcessingMode, "🎯 处理模式");
+                ui.selectable_value(&mut self.current_tab, Tab::Presets, "💾 配置预设");
+                ui.selectable_value(&mut self.current_tab, Tab::Preview, "🎬 效果预览");
+                ui.selectable_value(&mut self.current_tab, Tab::Help, "📖 使用说明");
             });
             
             ui.separator();
@@ -725,6 +780,8 @@ impl eframe::App for VideoMatrixApp {
                             });
                         });
                     }
+                    Tab::Presets => self.render_presets_tab(ui),
+                    Tab::Preview => self.render_preview_tab(ui),
                     
                     Tab::Help => {
                         ui.heading("📖 使用说明");
@@ -1458,11 +1515,263 @@ impl eframe::App for VideoMatrixApp {
                     }
                 });
         }
-
+        
         // Request repaint to keep UI responsive during processing
         if self.is_processing {
             ctx.request_repaint();
         }
+    }
+}
+
+// Separate implementation block for the main UI update to keep the file clean
+impl VideoMatrixApp {
+    fn render_presets_tab(&mut self, ui: &mut egui::Ui) {
+        ui.heading("💾 配置预设");
+        ui.add_space(10.0);
+        ui.label("在此处保存和加载您常用的功能组合。");
+        ui.add_space(10.0);
+        
+        egui::Grid::new("presets_grid").num_columns(2).spacing([20.0, 10.0]).show(ui, |ui| {
+            ui.label("强力去重模式");
+            if ui.button("加载").clicked() {
+                self.selected_actions = vec!["md5".to_string(), "crop".to_string(), "cut_head_tail".to_string(), "rotate".to_string(), "speed".to_string()];
+                self.single_video_mode = true; // Presets often imply a combined effect
+                self.log_internal("✅ 已加载预设: 强力去重模式 (已切换到全部功能页)".to_string());
+                self.current_tab = Tab::All;
+            }
+            ui.end_row();
+
+            ui.label("复古老电影风");
+            if ui.button("加载").clicked() {
+                self.selected_actions = vec!["bw".to_string(), "grain".to_string(), "vignette".to_string(), "fps_60".to_string()];
+                self.single_video_mode = true;
+                self.log_internal("✅ 已加载预设: 复古老电影风 (已切换到全部功能页)".to_string());
+                self.current_tab = Tab::All;
+            }
+            ui.end_row();
+
+            ui.label("带货快节奏");
+            if ui.button("加载").clicked() {
+                self.selected_actions = vec!["speed".to_string(), "sharpen".to_string(), "color".to_string(), "audio_noise".to_string()];
+                self.single_video_mode = true;
+                 self.log_internal("✅ 已加载预设: 带货快节奏 (已切换到全部功能页)".to_string());
+                 self.current_tab = Tab::All;
+            }
+            ui.end_row();
+        });
+        
+        ui.add_space(20.0);
+        
+        // Manual save/load (Simplified)
+        ui.separator();
+        ui.label("自定义预设:");
+        ui.horizontal(|ui| {
+             if ui.button("保存当前配置").clicked() {
+                 self.log_internal("💾 配置保存功能开发中...".to_string());
+             }
+        });
+    }
+
+    fn render_preview_tab(&mut self, ui: &mut egui::Ui) {
+        ui.heading("🎬 效果预览");
+        ui.add_space(10.0);
+        
+        if self.input_dir.is_empty() {
+             ui.colored_label(egui::Color32::RED, "⚠️ 请先选择输入目录");
+        } else {
+             ui.label(format!("当前输入: {}", self.input_dir));
+             ui.label(format!("当前输出: {}", if self.output_dir.is_empty() { format!("{}/output", self.input_dir) } else { self.output_dir.clone() }));
+             ui.add_space(10.0);
+             
+             let btn_label = if self.is_processing { "⏳ 生成中..." } else { "▶️ 生成 5秒 预览片段" };
+             
+             if ui.add_enabled(!self.is_processing, egui::Button::new(btn_label).min_size(egui::vec2(150.0, 40.0))).clicked() {
+                 self.start_preview_processing();
+             }
+             
+             ui.add_space(10.0);
+             ui.info_message("预览逻辑: \n1. 选取第一个视频文件\n2. 截取前 5 秒\n3. 叠加应用所有勾选的功能\n4. 自动打开播放结果");
+        }
+    }
+    
+    fn start_preview_processing(&mut self) {
+        if self.selected_actions.is_empty() {
+            self.log_internal("⚠️ 请先至少选择一个功能".to_string());
+            return;
+        }
+
+        self.is_processing = true;
+        self.progress = 0.0;
+        self.log("🎬 开始生成预览...");
+        
+        // Clone necessary data for the thread
+        let input_dir = self.input_dir.clone();
+        let output_dir = if self.output_dir.is_empty() {
+            format!("{}/output", self.input_dir)
+        } else {
+            self.output_dir.clone()
+        };
+        let selected_actions = self.selected_actions.clone();
+        
+        // Config creation (similar to start_processing)
+        let mut config = ActionConfig::default();
+        if !self.watermark_path.is_empty() { config.watermark_path = Some(self.watermark_path.clone()); }
+        if !self.mask_path.is_empty() { config.mask_path = Some(self.mask_path.clone()); }
+        if !self.sticker_path.is_empty() { config.sticker_path = Some(self.sticker_path.clone()); }
+        if !self.border_path.is_empty() { config.border_path = Some(self.border_path.clone()); }
+        if !self.light_effect_path.is_empty() { config.light_effect_path = Some(self.light_effect_path.clone()); }
+        if !self.pip_path.is_empty() { config.pip_path = Some(self.pip_path.clone()); }
+        if !self.goods_path.is_empty() { config.goods_path = Some(self.goods_path.clone()); }
+        if !self.mask_video_path.is_empty() { config.mask_video_path = Some(self.mask_video_path.clone()); }
+        
+        // Copy parameters
+        config.params.as_object_mut().unwrap().insert("crop_min".to_string(), serde_json::json!(self.crop_min));
+        config.params.as_object_mut().unwrap().insert("crop_max".to_string(), serde_json::json!(self.crop_max));
+        config.params.as_object_mut().unwrap().insert("watermark_position".to_string(), serde_json::json!(self.watermark_position));
+        config.params.as_object_mut().unwrap().insert("watermark_opacity".to_string(), serde_json::json!(self.watermark_opacity));
+        config.params.as_object_mut().unwrap().insert("rotate_angle".to_string(), serde_json::json!(self.rotate_angle));
+        config.params.as_object_mut().unwrap().insert("speed_range".to_string(), serde_json::json!(self.speed_range));
+        config.params.as_object_mut().unwrap().insert("target_fps".to_string(), serde_json::json!(self.target_fps));
+        config.params.as_object_mut().unwrap().insert("target_bitrate".to_string(), serde_json::json!(self.target_bitrate));
+        config.params.as_object_mut().unwrap().insert("sharpen_strength".to_string(), serde_json::json!(self.sharpen_strength));
+        config.params.as_object_mut().unwrap().insert("denoise_strength".to_string(), serde_json::json!(self.denoise_strength));
+        config.params.as_object_mut().unwrap().insert("blur_strength".to_string(), serde_json::json!(self.blur_strength));
+        config.params.as_object_mut().unwrap().insert("grain_strength".to_string(), serde_json::json!(self.grain_strength));
+        config.params.as_object_mut().unwrap().insert("vignette_strength".to_string(), serde_json::json!(self.vignette_strength));
+        config.params.as_object_mut().unwrap().insert("border_width".to_string(), serde_json::json!(self.border_width));
+        config.params.as_object_mut().unwrap().insert("cut_seconds".to_string(), serde_json::json!(self.cut_seconds));
+        config.params.as_object_mut().unwrap().insert("mirror_direction".to_string(), serde_json::json!(self.mirror_direction));
+        config.params.as_object_mut().unwrap().insert("strong_crop_ratio".to_string(), serde_json::json!(self.strong_crop_ratio));
+        config.params.as_object_mut().unwrap().insert("portrait_strength".to_string(), serde_json::json!(self.portrait_strength));
+        config.params.as_object_mut().unwrap().insert("color_temp_range".to_string(), serde_json::json!(self.color_temp_range));
+        config.params.as_object_mut().unwrap().insert("pull_width".to_string(), serde_json::json!(self.pull_width));
+        config.params.as_object_mut().unwrap().insert("progressive_ratio".to_string(), serde_json::json!(self.progressive_ratio));
+        config.params.as_object_mut().unwrap().insert("corner_radius".to_string(), serde_json::json!(self.corner_radius));
+        config.params.as_object_mut().unwrap().insert("zoom_range".to_string(), serde_json::json!(self.zoom_range));
+        config.params.as_object_mut().unwrap().insert("dissolve_strength".to_string(), serde_json::json!(self.dissolve_strength));
+        config.params.as_object_mut().unwrap().insert("scan_strength".to_string(), serde_json::json!(self.scan_strength));
+        config.params.as_object_mut().unwrap().insert("bounce_amplitude".to_string(), serde_json::json!(self.bounce_amplitude));
+        config.params.as_object_mut().unwrap().insert("trifold_spacing".to_string(), serde_json::json!(self.trifold_spacing));
+        config.params.as_object_mut().unwrap().insert("flash_strength".to_string(), serde_json::json!(self.flash_strength));
+        config.params.as_object_mut().unwrap().insert("lava_strength".to_string(), serde_json::json!(self.lava_strength));
+        config.params.as_object_mut().unwrap().insert("noise_strength".to_string(), serde_json::json!(self.noise_strength));
+        config.params.as_object_mut().unwrap().insert("pitch_range".to_string(), serde_json::json!(self.pitch_range));
+        
+        // Spawn processing thread
+        let (tx, rx) = channel();
+        self.rx = Some(rx);
+        let tx_clone = tx.clone();
+        
+        thread::spawn(move || {
+             if let Err(e) = Self::run_preview_task(input_dir, output_dir, selected_actions, config, tx_clone) {
+                 eprintln!("Preview Error: {}", e);
+             }
+        });
+    }
+
+    fn run_preview_task(input_dir: String, output_dir: String, actions: Vec<String>, config: ActionConfig, tx: Sender<AppMessage>) -> anyhow::Result<()> {
+        let _ = tx.send(AppMessage::Log("🔍 寻找预览视频源...".to_string()));
+         let video_files = Self::scan_video_files_static(&input_dir);
+         
+         if video_files.is_empty() {
+             let _ = tx.send(AppMessage::Error("未找到视频文件，无法预览".to_string()));
+             return Ok(());
+         }
+         
+         let src_video = PathBuf::from(&video_files[0]);
+         let _ = tx.send(AppMessage::Log(format!("📹 使用视频源: {:?}", src_video.file_name().unwrap_or_default())));
+         
+         // Setup directories
+         let preview_dir = Path::new(&output_dir).join("preview");
+         if !preview_dir.exists() {
+             fs::create_dir_all(&preview_dir)?;
+         }
+         
+         let preview_source = preview_dir.join("temp_source.mp4");
+         
+         // Step 1: Cut 5 seconds
+         let _ = tx.send(AppMessage::Log("✂️ 正在截取前 5 秒...".to_string()));
+         let ffmpeg_path = crate::core::ffutils::FFUtils::get_ffmpeg_path();
+         
+         let output = std::process::Command::new(&ffmpeg_path)
+             .args(&[
+                 "-y", "-ss", "0", "-t", "5", 
+                 "-i", src_video.to_str().unwrap(),
+                 "-c:v", "libx264", "-preset", "ultrafast", // Re-encode to ensure clean cut and compatibility
+                 "-c:a", "aac",
+                 preview_source.to_str().unwrap()
+             ])
+             .output()?;
+             
+         if !output.status.success() {
+              let stderr = String::from_utf8_lossy(&output.stderr);
+              let _ = tx.send(AppMessage::Error(format!("截取失败: {}", stderr)));
+              return Ok(());
+         }
+         
+         // Step 2: Apply actions (Chained)
+         let _ = tx.send(AppMessage::Log("🚀 正在叠加应用所有效果...".to_string()));
+         
+         let mut current_input = preview_source.clone();
+         let mut temp_files = Vec::new();
+         
+         for (i, action_id) in actions.iter().enumerate() {
+             let _ = tx.send(AppMessage::Log(format!("  [{}/{}] 应用: {}", i+1, actions.len(), action_id)));
+             
+             // Reuse the static execution logic
+             // Note: execute_action_static generates output based on input filename + action_id
+             // We want to control the flow here.
+             
+             match Self::execute_action_static(action_id, &current_input, &preview_dir, &config) {
+                 Ok(_) => {
+                     // Determine the output path that execute_action_static created
+                     let current_ext = current_input.extension().unwrap_or_default().to_string_lossy();
+                     let current_stem = current_input.file_stem().unwrap_or_default().to_string_lossy();
+                     
+                     let expected_out_name = format!("{}_{}.{}", current_stem, action_id, current_ext);
+                     let expected_out_path = preview_dir.join(&expected_out_name);
+                     
+                     if expected_out_path.exists() {
+                         temp_files.push(current_input); // Mark previous as temp to delete
+                         current_input = expected_out_path;
+                     } else {
+                          let _ = tx.send(AppMessage::Error(format!("Action {} finished but output not found", action_id)));
+                          break;
+                     }
+                 },
+                 Err(e) => {
+                     let _ = tx.send(AppMessage::Error(format!("Action {} failed: {}", action_id, e)));
+                     break;
+                 }
+             }
+             
+             // Update progress
+             let _ = tx.send(AppMessage::Progress((i + 1) as f32 / actions.len() as f32));
+         }
+         
+         // Step 3: Open Result
+         let _ = tx.send(AppMessage::Log("✨ 预览生成完毕，正在打开...".to_string()));
+         // Open the file using system default player
+         #[cfg(target_os = "macos")]
+         let _ = std::process::Command::new("open").arg(&current_input).spawn();
+         
+         #[cfg(target_os = "windows")]
+         let _ = std::process::Command::new("cmd").args(&["/C", "start", "", current_input.to_str().unwrap()]).spawn();
+         
+         // Cleanup temps (optional: keep source for debug, but delete intermediate steps)
+         // for p in temp_files { if p != preview_source { fs::remove_file(p).ok(); } }
+         
+         let _ = tx.send(AppMessage::Finished);
+         Ok(())
+    }
+}
+
+pub trait VideoMatrixUiExt {
+    fn info_message(&mut self, text: &str);
+}
+impl VideoMatrixUiExt for egui::Ui {
+    fn info_message(&mut self, text: &str) {
+         self.label(egui::RichText::new(text).small().color(egui::Color32::GRAY));
     }
 }
 
@@ -1893,7 +2202,7 @@ pub fn run_desktop_app() -> Result<(), eframe::Error> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1000.0, 800.0])
             .with_min_inner_size([800.0, 600.0])
-            .with_title("视频矩阵 Pro v5.5.12"),
+            .with_title("视频矩阵 Pro v5.5.13"),
         ..Default::default()
     };
     

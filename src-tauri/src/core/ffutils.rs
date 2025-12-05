@@ -7,7 +7,7 @@ pub struct FFUtils;
 
 impl FFUtils {
     /// Get the path to bundled FFmpeg executable
-    fn get_ffmpeg_path() -> PathBuf {
+    pub fn get_ffmpeg_path() -> PathBuf {
         // Try to find FFmpeg in the application directory
         if let Ok(exe_path) = env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
