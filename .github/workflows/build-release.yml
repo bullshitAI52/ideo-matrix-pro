@@ -58,19 +58,28 @@ jobs:
         run: |
           Write-Host "Preparing FFmpeg binaries..."
           
-          # 确保目录存在
-          New-Item -ItemType Directory -Force -Path "src-tauri\binaries"
+          # 确保 src-tauri/binaries 目录存在
+          $binDir = Join-Path (Get-Location) "src-tauri\binaries"
+          if (-not (Test-Path $binDir)) {
+            New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+          }
           
-          # 复制到 src-tauri/binaries，供 Tauri 打包使用
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg.exe" -Force
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe.exe" -Force
+          # 复制文件
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "$binDir\ffmpeg.exe" -Force
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "$binDir\ffprobe.exe" -Force
           
-          Write-Host "FFmpeg binaries ready for bundling:"
-          Get-ChildItem "src-tauri\binaries"
+          Write-Host "Verifying file existence:"
+          Get-ChildItem $binDir
+          
+          # 同时复制一份到 src-tauri 根目录，以防万一
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "src-tauri\ffmpeg.exe" -Force
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "src-tauri\ffprobe.exe" -Force
 
       - name: Build Tauri app
         run: |
           echo "Starting Tauri build..."
+          # 列出 src-tauri 目录内容以供调试
+          ls -R src-tauri/binaries
           npm run tauri build -- --verbose
         env:
           RUST_BACKTRACE: 1

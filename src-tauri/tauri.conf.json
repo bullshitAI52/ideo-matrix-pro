@@ -79,7 +79,9 @@
                 "binaries/ffmpeg.exe",
                 "binaries/ffprobe.exe",
                 "binaries/ffmpeg",
-                "binaries/ffprobe"
+                "binaries/ffprobe",
+                "ffmpeg.exe",
+                "ffprobe.exe"
             ]
         },
         "security": {
