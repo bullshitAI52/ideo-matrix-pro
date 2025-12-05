@@ -20,6 +20,15 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install WebView2 (Windows dependency)
+        shell: pwsh
+        run: |
+          Write-Host "Installing WebView2..."
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "MicrosoftEdgeWebview2Setup.exe"
+          Start-Process -FilePath "MicrosoftEdgeWebview2Setup.exe" -ArgumentList "/silent /install" -Wait
 
       - name: Download and setup FFmpeg
         shell: pwsh
@@ -45,7 +54,22 @@ jobs:
         run: npm install
 
       - name: Build Tauri app
-        run: npm run tauri build
+        run: |
+          echo "Starting Tauri build..."
+          npm run tauri build -- --verbose
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: List build outputs
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "Checking build outputs..."
+          if (Test-Path "src-tauri\target\release\bundle") {
+            Get-ChildItem -Recurse "src-tauri\target\release\bundle"
+          } else {
+            Write-Host "Bundle directory not found!"
+          }
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
