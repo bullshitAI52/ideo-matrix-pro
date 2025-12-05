@@ -511,7 +511,7 @@ impl eframe::App for VideoMatrixApp {
             // Header
             ui.horizontal(|ui| {
                 ui.heading(egui::RichText::new("视频矩阵 Pro").size(24.0).strong());
-                ui.label(egui::RichText::new("V5.4").size(14.0).color(egui::Color32::GRAY));
+                ui.label(egui::RichText::new("v5.5.12").size(14.0).color(egui::Color32::GRAY));
             });
             ui.add_space(10.0);
             
@@ -1893,7 +1893,7 @@ pub fn run_desktop_app() -> Result<(), eframe::Error> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1000.0, 800.0])
             .with_min_inner_size([800.0, 600.0])
-            .with_title("视频矩阵 Pro V5.4"),
+            .with_title("视频矩阵 Pro v5.5.12"),
         ..Default::default()
     };
     
