@@ -76,12 +76,10 @@
                 "icons/icon.ico"
             ],
             "resources": [
-                "binaries/ffmpeg.exe",
-                "binaries/ffprobe.exe",
-                "binaries/ffmpeg",
-                "binaries/ffprobe",
                 "ffmpeg.exe",
-                "ffprobe.exe"
+                "ffprobe.exe",
+                "ffmpeg",
+                "ffprobe"
             ]
         },
         "security": {
