@@ -66,11 +66,10 @@ jobs:
           $releaseDir = "src-tauri\target\release"
           
           # Copy FFmpeg binaries next to the executable
-          if (Test-Path "$releaseDir\video-matrix-pro.exe") {
-            Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "$releaseDir\ffmpeg.exe" -Force
-            Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "$releaseDir\ffprobe.exe" -Force
-            Write-Host "FFmpeg copied to release directory"
-          }
+          Write-Host "Copying FFmpeg binaries..."
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg.exe" -Force
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe.exe" -Force
+          Write-Host "FFmpeg copied to binaries directory"
           
           # Also copy to NSIS installer directory if it exists
           $nsisDir = "src-tauri\target\release\bundle\nsis"
@@ -128,10 +127,8 @@ jobs:
           mkdir -p src-tauri/binaries
           
           echo "Copying FFmpeg binaries..."
-          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-aarch64-apple-darwin
-          cp $(which ffprobe) src-tauri/binaries/ffprobe-aarch64-apple-darwin
-          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-x86_64-apple-darwin
-          cp $(which ffprobe) src-tauri/binaries/ffprobe-x86_64-apple-darwin
+          cp $(which ffmpeg) src-tauri/binaries/ffmpeg
+          cp $(which ffprobe) src-tauri/binaries/ffprobe
           
           echo "Verifying files..."
           ls -lh src-tauri/binaries/
