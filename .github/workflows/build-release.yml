@@ -57,6 +57,33 @@ jobs:
         env:
           RUST_BACKTRACE: 1
 
+      - name: Bundle FFmpeg with installer
+        shell: pwsh
+        run: |
+          Write-Host "Bundling FFmpeg with the application..."
+          
+          # Find the built executable directory
+          $releaseDir = "src-tauri\target\release"
+          
+          # Copy FFmpeg binaries next to the executable
+          if (Test-Path "$releaseDir\video-matrix-pro.exe") {
+            Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "$releaseDir\ffmpeg.exe" -Force
+            Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "$releaseDir\ffprobe.exe" -Force
+            Write-Host "FFmpeg copied to release directory"
+          }
+          
+          # Also copy to NSIS installer directory if it exists
+          $nsisDir = "src-tauri\target\release\bundle\nsis"
+          if (Test-Path $nsisDir) {
+            Get-ChildItem -Path $nsisDir -Filter "*.exe" | ForEach-Object {
+              $installerDir = $_.DirectoryName
+              Write-Host "Found installer at: $installerDir"
+            }
+          }
+          
+          # For MSI, we need to rebuild with FFmpeg included
+          # The files will be picked up from the release directory
+
       - name: List build outputs
         if: always()
         shell: pwsh

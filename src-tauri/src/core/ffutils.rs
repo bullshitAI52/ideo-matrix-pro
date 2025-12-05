@@ -1,20 +1,64 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use anyhow::{Result, anyhow};
+use std::env;
 
 pub struct FFUtils;
 
 impl FFUtils {
+    /// Get the path to bundled FFmpeg executable
+    fn get_ffmpeg_path() -> PathBuf {
+        // Try to find FFmpeg in the application directory
+        if let Ok(exe_path) = env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                // Check for bundled FFmpeg
+                let bundled_ffmpeg = exe_dir.join("ffmpeg.exe");
+                if bundled_ffmpeg.exists() {
+                    return bundled_ffmpeg;
+                }
+                
+                // Also check in a "bin" subdirectory
+                let bin_ffmpeg = exe_dir.join("bin").join("ffmpeg.exe");
+                if bin_ffmpeg.exists() {
+                    return bin_ffmpeg;
+                }
+            }
+        }
+        
+        // Fallback to system FFmpeg
+        PathBuf::from("ffmpeg")
+    }
+    
+    /// Get the path to bundled FFprobe executable
+    fn get_ffprobe_path() -> PathBuf {
+        if let Ok(exe_path) = env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let bundled_ffprobe = exe_dir.join("ffprobe.exe");
+                if bundled_ffprobe.exists() {
+                    return bundled_ffprobe;
+                }
+                
+                let bin_ffprobe = exe_dir.join("bin").join("ffprobe.exe");
+                if bin_ffprobe.exists() {
+                    return bin_ffprobe;
+                }
+            }
+        }
+        
+        PathBuf::from("ffprobe")
+    }
+
     /// Run an FFmpeg command
     pub fn run(args: &[&str]) -> Result<()> {
-        // Add -y to force overwrite
         let mut final_args = vec!["-y"];
         final_args.extend_from_slice(args);
         
-        let output = Command::new("ffmpeg")
+        let ffmpeg_path = Self::get_ffmpeg_path();
+        
+        let output = Command::new(&ffmpeg_path)
             .args(&final_args)
             .output()
-            .map_err(|e| anyhow!("Failed to execute ffmpeg: {}", e))?;
+            .map_err(|e| anyhow!("Failed to execute ffmpeg at {:?}: {}", ffmpeg_path, e))?;
 
         if output.status.success() {
             Ok(())
@@ -40,7 +84,9 @@ impl FFUtils {
 
     /// Get video duration using ffprobe
     pub fn get_duration(src: &Path) -> Result<f64> {
-        let output = Command::new("ffprobe")
+        let ffprobe_path = Self::get_ffprobe_path();
+        
+        let output = Command::new(&ffprobe_path)
             .args(&[
                 "-v", "error",
                 "-show_entries", "format=duration",
@@ -48,7 +94,7 @@ impl FFUtils {
                 src.to_str().unwrap()
             ])
             .output()
-            .map_err(|e| anyhow!("Failed to execute ffprobe: {}", e))?;
+            .map_err(|e| anyhow!("Failed to execute ffprobe at {:?}: {}", ffprobe_path, e))?;
 
         if !output.status.success() {
             return Err(anyhow!("ffprobe failed"));
@@ -62,6 +108,6 @@ impl FFUtils {
     pub fn escape_path(path: &str) -> String {
         path.replace('\\', "/")
             .replace(':', "\\:")
-            .replace('\'', "\\\'")
+            .replace('\'', "\\\\'")
     }
 }
