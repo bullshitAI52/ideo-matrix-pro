@@ -30,21 +30,19 @@ impl FFUtils {
     }
     
     /// Get the path to bundled FFprobe executable
-    fn get_ffprobe_path() -> PathBuf {
+    pub fn get_ffprobe_path() -> PathBuf {
+        // Try to find FFprobe in the application directory
         if let Ok(exe_path) = env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
-                let bundled_ffprobe = exe_dir.join("ffprobe.exe");
-                if bundled_ffprobe.exists() {
-                    return bundled_ffprobe;
-                }
-                
-                let bin_ffprobe = exe_dir.join("bin").join("ffprobe.exe");
-                if bin_ffprobe.exists() {
-                    return bin_ffprobe;
+                let binary_name = if cfg!(target_os = "windows") { "ffprobe.exe" } else { "ffprobe" };
+                let bundled_path = exe_dir.join(binary_name);
+                if bundled_path.exists() {
+                    return bundled_path;
                 }
             }
         }
         
+        // Fallback to system ffprobe
         PathBuf::from("ffprobe")
     }
 

@@ -127,4 +127,62 @@ Do not include markdown formatting (like ```json). Just return the raw JSON stri
 
         Ok(ai_response)
     }
+    pub async fn analyze_video_metadata(&self, metadata_summary: &str) -> Result<AIResponse> {
+        let client = reqwest::Client::new();
+        let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
+        
+        let system_prompt = r#"
+You are a professional video engineer AI. Your job is to analyze video metadata summaries and suggest optimal processing parameters.
+Based on the provided video characteristics (resolution, duration, bitrate, etc.), suggest a set of actions to improve or stylize the videos.
+
+Rules:
+1. If videos are vertical (9:16) and short, consider them as TikTok/Shorts style -> suggest fast pacing, sharpening, and color boosting.
+2. If videos are horizontal (16:9), consider them as Cinematic/Vlog -> suggest cinematic bars, grading, etc.
+3. If bitrate is low, suggest denoising and sharpening.
+4. If duration is long, suggest simple cuts or speed ups.
+
+The available actions and output format MUST be exactly the same as the standard requirements:
+{
+    "suggested_actions": ["action_id1", "action_id2"],
+    "params": { ... },
+    "explanation": "Brief explanation focused on the video characteristics."
+}
+Do not include markdown formatting.
+"#;
+
+        let response = client.post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&json!({
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": metadata_summary}
+                ],
+                "temperature": 0.7
+            }))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow::anyhow!("API 请求失败: {}", error_text));
+        }
+
+        let response_json: serde_json::Value = response.json().await?;
+        let content = response_json["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("无法解析 API 响应内容"))?;
+
+        let clean_content = content.trim()
+            .trim_start_matches("```json")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim();
+
+        let ai_response: AIResponse = serde_json::from_str(clean_content)
+            .map_err(|e| anyhow::anyhow!("JSON 解析失败: {} \n原始内容: {}", e, content))?;
+
+        Ok(ai_response)
+    }
 }
