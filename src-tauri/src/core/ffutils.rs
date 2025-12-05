@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::Command;
+use tauri::api::process::Command;
 use anyhow::{Result, anyhow};
 
 pub struct FFUtils;
@@ -11,7 +11,7 @@ impl FFUtils {
         let mut final_args = vec!["-y"];
         final_args.extend_from_slice(args);
         
-        let output = Command::new("ffmpeg")
+        let output = Command::new_sidecar("ffmpeg")?
             .args(&final_args)
             .output()
             .map_err(|e| anyhow!("Failed to execute ffmpeg: {}", e))?;
@@ -19,8 +19,7 @@ impl FFUtils {
         if output.status.success() {
             Ok(())
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("FFmpeg failed: {}", stderr))
+            Err(anyhow!("FFmpeg failed: {}", output.stderr))
         }
     }
 
@@ -40,7 +39,7 @@ impl FFUtils {
 
     /// Get video duration using ffprobe
     pub fn get_duration(src: &Path) -> Result<f64> {
-        let output = Command::new("ffprobe")
+        let output = Command::new_sidecar("ffprobe")?
             .args(&[
                 "-v", "error",
                 "-show_entries", "format=duration",
@@ -54,7 +53,7 @@ impl FFUtils {
             return Err(anyhow!("ffprobe failed"));
         }
 
-        let output_str = String::from_utf8(output.stdout)?;
+        let output_str = output.stdout;
         output_str.trim().parse::<f64>().map_err(|e| anyhow!("Failed to parse duration: {}", e))
     }
 
