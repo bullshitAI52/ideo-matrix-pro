@@ -34,17 +34,30 @@ jobs:
 
       - name: Download FFmpeg (Windows)
         if: matrix.platform == 'windows-latest'
+        shell: pwsh
         run: |
-          # 下载 FFmpeg Windows 版本
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
-          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "."
+          # 下载 FFmpeg Windows 版本（使用稳定版本）
+          $url = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+          Write-Host "Downloading FFmpeg from $url"
+          Invoke-WebRequest -Uri $url -OutFile "ffmpeg.zip" -UseBasicParsing
+          
+          # 解压
+          Write-Host "Extracting FFmpeg..."
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "." -Force
           
           # 创建 binaries 目录
-          New-Item -ItemType Directory -Force -Path "src-tauri/binaries"
+          Write-Host "Creating binaries directory..."
+          New-Item -ItemType Directory -Force -Path "src-tauri\binaries" | Out-Null
           
-          # 复制 ffmpeg 和 ffprobe
-          Copy-Item -Path "ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe" -Destination "src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe"
-          Copy-Item -Path "ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe" -Destination "src-tauri/binaries/ffprobe-x86_64-pc-windows-msvc.exe"
+          # 查找并复制 ffmpeg 和 ffprobe
+          $ffmpegDir = Get-ChildItem -Directory -Filter "ffmpeg-*" | Select-Object -First 1
+          Write-Host "Found FFmpeg directory: $($ffmpegDir.Name)"
+          
+          Copy-Item -Path "$($ffmpegDir.FullName)\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg-x86_64-pc-windows-msvc.exe" -Force
+          Copy-Item -Path "$($ffmpegDir.FullName)\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe-x86_64-pc-windows-msvc.exe" -Force
+          
+          Write-Host "FFmpeg binaries copied successfully"
+          Get-ChildItem "src-tauri\binaries"
 
       - name: Download FFmpeg (macOS)
         if: matrix.platform == 'macos-latest'
