@@ -3,17 +3,12 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'  # 当推送 v 开头的标签时触发（如 v5.5.0）
+      - 'v*'
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.platform }}
-
+  build-windows:
+    runs-on: windows-latest
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,55 +21,25 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Download FFmpeg (Windows)
-        if: matrix.platform == 'windows-latest'
+      - name: Download and setup FFmpeg
         shell: pwsh
         run: |
-          # 下载 FFmpeg Windows 版本（使用稳定版本）
-          $url = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
-          Write-Host "Downloading FFmpeg from $url"
-          Invoke-WebRequest -Uri $url -OutFile "ffmpeg.zip" -UseBasicParsing
+          Write-Host "Downloading FFmpeg..."
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest -Uri "https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-essentials_build.zip" -OutFile "ffmpeg.zip"
           
-          # 解压
           Write-Host "Extracting FFmpeg..."
           Expand-Archive -Path "ffmpeg.zip" -DestinationPath "." -Force
           
-          # 创建 binaries 目录
           Write-Host "Creating binaries directory..."
-          New-Item -ItemType Directory -Force -Path "src-tauri\binaries" | Out-Null
+          New-Item -ItemType Directory -Force -Path "src-tauri\binaries"
           
-          # 查找并复制 ffmpeg 和 ffprobe
-          $ffmpegDir = Get-ChildItem -Directory -Filter "ffmpeg-*" | Select-Object -First 1
-          Write-Host "Found FFmpeg directory: $($ffmpegDir.Name)"
+          Write-Host "Copying FFmpeg binaries..."
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg-x86_64-pc-windows-msvc.exe"
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe-x86_64-pc-windows-msvc.exe"
           
-          Copy-Item -Path "$($ffmpegDir.FullName)\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg-x86_64-pc-windows-msvc.exe" -Force
-          Copy-Item -Path "$($ffmpegDir.FullName)\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe-x86_64-pc-windows-msvc.exe" -Force
-          
-          Write-Host "FFmpeg binaries copied successfully"
+          Write-Host "Verifying files..."
           Get-ChildItem "src-tauri\binaries"
-
-      - name: Download FFmpeg (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          # 使用 Homebrew 安装 FFmpeg
-          brew install ffmpeg
-          
-          # 创建 binaries 目录
-          mkdir -p src-tauri/binaries
-          
-          # 复制 ffmpeg 和 ffprobe
-          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-aarch64-apple-darwin
-          cp $(which ffprobe) src-tauri/binaries/ffprobe-aarch64-apple-darwin
-          
-          # 同时支持 Intel Mac
-          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-x86_64-apple-darwin
-          cp $(which ffprobe) src-tauri/binaries/ffprobe-x86_64-apple-darwin
 
       - name: Install frontend dependencies
         run: npm install
@@ -82,8 +47,7 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri build
 
-      - name: Upload Release Assets (Windows)
-        if: matrix.platform == 'windows-latest'
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
@@ -92,8 +56,45 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Release Assets (macOS)
-        if: matrix.platform == 'macos-latest'
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download and setup FFmpeg
+        run: |
+          echo "Installing FFmpeg via Homebrew..."
+          brew install ffmpeg
+          
+          echo "Creating binaries directory..."
+          mkdir -p src-tauri/binaries
+          
+          echo "Copying FFmpeg binaries..."
+          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-aarch64-apple-darwin
+          cp $(which ffprobe) src-tauri/binaries/ffprobe-aarch64-apple-darwin
+          cp $(which ffmpeg) src-tauri/binaries/ffmpeg-x86_64-apple-darwin
+          cp $(which ffprobe) src-tauri/binaries/ffprobe-x86_64-apple-darwin
+          
+          echo "Verifying files..."
+          ls -lh src-tauri/binaries/
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
