@@ -6,7 +6,25 @@ A high-performance video processing tool built with Rust and Tauri.
 
 - **Node.js**: Required for the frontend build.
 - **Rust**: Required for the backend build.
-- **FFmpeg**: Must be installed and available in your system PATH.
+- **Video Masking**: robust overlay support with auto-looping and auto-scaling to fit any target video.
+- **FFmpeg**: Must be installed and available in your system PATH (packaged automatically in release builds).
+
+## Feature Highlights
+
+- **Smart Video Masking**:
+    - Automatically loops short mask videos to cover the full duration of the main video.
+    - intelligently scales mask assets to match the target video's resolution (fills the screen).
+    - Supports dynamic blend modes (Multiply, etc.) for high-quality visual effects.
+- **Rich Material Overlays**:
+    - Picture-in-Picture (PIP), Stickers, and Watermark support.
+    - Advanced light effects and goods templates.
+- **Comprehensive Editing**:
+    - Crop, Rotate, Mirror, Speed Adjustment, and more.
+    - Advanced color grading (Brightness, Contrast, Saturation, Vignette).
+- **Batch Processing**:
+    - Multi-threaded processing for high efficiency.
+    - Custom output directory management.
+
 
 ## How to Run (Development Mode)
 

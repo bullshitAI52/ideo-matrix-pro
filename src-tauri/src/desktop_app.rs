@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::core::{VideoAction, ActionConfig};
 use crate::core::ai::{AIService, AIResponse};
 use crate::actions::*;
+use rayon::prelude::*;
 
 // Message types for communication between threads
 enum AppMessage {
@@ -113,6 +114,9 @@ struct VideoMatrixApp {
     mask_video_opacity: f32,    // mask video opacity (0.0-1.0)
     mask_video_blend_mode: String, // blend mode (multiply/screen/overlay/add)
     mask_video_scale: String,   // scale mode (stretch/crop/fit)
+    
+    // 单个视频功能叠加模式
+    single_video_mode: bool,    // true: 所有功能叠加到单个视频; false: 每个功能生成独立视频
 }
 
 // Tab Enum
@@ -123,6 +127,7 @@ enum Tab {
     Materials,  // New Materials Tab
     Help,      // Help & Documentation
     AIDedup,   // AI-powered deduplication
+    ProcessingMode, // 处理模式设置
 }
 
 impl Default for Tab {
@@ -290,6 +295,9 @@ impl Default for VideoMatrixApp {
             mask_video_opacity: 0.8,
             mask_video_blend_mode: "multiply".to_string(),
             mask_video_scale: "stretch".to_string(),
+            
+            // 单个视频模式默认关闭
+            single_video_mode: false,
         }
     }
 }
@@ -556,6 +564,7 @@ impl eframe::App for VideoMatrixApp {
                 ui.selectable_value(&mut self.current_tab, Tab::Materials, "🎨 素材设置");
                 ui.selectable_value(&mut self.current_tab, Tab::Help, "📖 使用说明");
                 ui.selectable_value(&mut self.current_tab, Tab::AIDedup, "🤖 AI消重");
+                ui.selectable_value(&mut self.current_tab, Tab::ProcessingMode, "🎯 处理模式");
             });
             
             ui.separator();
@@ -1021,6 +1030,79 @@ impl eframe::App for VideoMatrixApp {
                             }
                         });
                     }
+                    
+                    Tab::ProcessingMode => {
+                        ui.heading("🎯 处理模式设置");
+                        ui.add_space(10.0);
+                        
+                        ui.label("设置视频处理的工作模式，此设置对所有标签页的功能都有效");
+                        ui.add_space(15.0);
+                        
+                        // 单个视频功能叠加模式开关
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.heading("📽️ 视频输出模式");
+                            ui.add_space(5.0);
+                            
+                            ui.horizontal(|ui| {
+                                if ui.checkbox(&mut self.single_video_mode, "单个视频功能叠加模式").changed() {
+                                    self.log(&format!("{} 单个视频功能叠加模式", 
+                                        if self.single_video_mode { "✅ 已开启" } else { "✅ 已关闭" }));
+                                }
+                            });
+                            
+                            ui.add_space(5.0);
+                            ui.label("• 开启：所有选中的功能按顺序应用到同一个视频，最终生成一个文件");
+                            ui.label("• 关闭：每个功能生成独立的视频文件（原始模式）");
+                            ui.small("⚠️ 注意：请在开始处理前设置此选项");
+                        });
+                        
+                        ui.add_space(15.0);
+                        
+                        // 模式说明
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.heading("📚 模式说明");
+                            ui.add_space(5.0);
+                            
+                            ui.label("🔹 单个视频功能叠加模式（推荐用于去重）");
+                            ui.label("   • 所有选中的功能按顺序应用到同一个视频");
+                            ui.label("   • 最终只生成一个处理后的视频文件");
+                            ui.label("   • 适合需要多重处理的场景");
+                            ui.label("   • 文件命名：原文件名_processed.扩展名");
+                            
+                            ui.add_space(10.0);
+                            
+                            ui.label("🔹 独立视频输出模式（原始模式）");
+                            ui.label("   • 每个功能生成独立的视频文件");
+                            ui.label("   • 适合需要单独查看每个效果的情况");
+                            ui.label("   • 文件命名：原文件名_功能名.扩展名");
+                            
+                            ui.add_space(5.0);
+                            ui.small("💡 提示：切换模式后，已选中的功能不会改变");
+                        });
+                        
+                        ui.add_space(15.0);
+                        
+                        // 当前状态显示
+                        egui::Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
+                            ui.heading("📊 当前状态");
+                            ui.add_space(5.0);
+                            
+                            ui.label(format!("当前模式：{}", 
+                                if self.single_video_mode { 
+                                    "✅ 单个视频功能叠加模式" 
+                                } else { 
+                                    "✅ 独立视频输出模式" 
+                                }));
+                            
+                            ui.label(format!("已选中功能：{} 个", self.selected_actions.len()));
+                            if !self.selected_actions.is_empty() {
+                                ui.label("选中的功能：");
+                                for action in &self.selected_actions {
+                                    ui.label(format!("  • {}", action));
+                                }
+                            }
+                        });
+                    }
                 }
                 
                 
@@ -1448,6 +1530,7 @@ impl VideoMatrixApp {
             self.output_dir.clone()
         };
         let selected_actions = self.selected_actions.clone();
+        let single_video_mode = self.single_video_mode;
         
         // Prepare config with material paths
         let mut config = ActionConfig::default();
@@ -1506,16 +1589,17 @@ impl VideoMatrixApp {
         
         // Spawn thread
         thread::spawn(move || {
-            if let Err(e) = Self::process_thread(input_dir, output_dir, selected_actions, config, tx_clone) {
+            if let Err(e) = Self::process_thread(input_dir, output_dir, selected_actions, single_video_mode, config, tx_clone) {
                 eprintln!("Thread error: {}", e);
             }
         });
     }
 
-    fn process_thread(input_dir: String, output_dir: String, actions: Vec<String>, config: ActionConfig, tx: Sender<AppMessage>) -> anyhow::Result<()> {
+    fn process_thread(input_dir: String, output_dir: String, actions: Vec<String>, single_video_mode: bool, config: ActionConfig, tx: Sender<AppMessage>) -> anyhow::Result<()> {
         let _ = tx.send(AppMessage::Log(format!("📂 Input: {}", input_dir)));
         let _ = tx.send(AppMessage::Log(format!("📂 Output: {}", output_dir)));
         let _ = tx.send(AppMessage::Log(format!("✅ Selected {} features", actions.len())));
+        let _ = tx.send(AppMessage::Log(format!("🎯 处理模式: {}", if single_video_mode { "单个视频功能叠加" } else { "每个功能独立输出" })));
         
         // Scan video files
         let _ = tx.send(AppMessage::Log("🔍 Scanning for video files...".to_string()));
@@ -1527,9 +1611,16 @@ impl VideoMatrixApp {
         }
         
         let _ = tx.send(AppMessage::Log(format!("📹 Found {} video files", video_files.len())));
+        let _ = tx.send(AppMessage::Log("🚀 正在使用多线程并行处理...".to_string()));
         
-        let total_tasks = (video_files.len() * actions.len()) as f32;
-        let mut completed_tasks = 0.0;
+        let total_tasks = if single_video_mode {
+            video_files.len() as f32
+        } else {
+            (video_files.len() * actions.len()) as f32
+        };
+        
+        // Use AtomicUsize for thread-safe progress tracking
+        let completed_tasks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         
         // Create output directory
         let out_path = PathBuf::from(&output_dir);
@@ -1538,29 +1629,129 @@ impl VideoMatrixApp {
             return Ok(());
         }
         
-        // Process each video file
-        for video_file in &video_files {
+        // Process video files in parallel using Rayon
+        video_files.par_iter().for_each(|video_file| {
             let video_path = Path::new(video_file);
             let filename = video_path.file_name().unwrap().to_string_lossy();
+            let tx = tx.clone(); // Clone sender for each thread
             
-            for action_id in &actions {
-                let _ = tx.send(AppMessage::Log(format!("  ⏳ Processing: {} [{}]...", filename, action_id)));
+            if single_video_mode {
+                // 单个视频叠加模式：所有动作按顺序应用到同一个视频
+                let _ = tx.send(AppMessage::Log(format!("  ⏳ 叠加处理: {} [{}]...", filename, actions.join(" → "))));
                 
-                // Call corresponding action
-                let result = Self::execute_action_static(action_id, video_path, &out_path, &config);
+                let mut current_input = video_path.to_path_buf();
+                let mut temp_files = Vec::new();
+                let mut success = true;
                 
-                match result {
-                    Ok(_) => {
-                        completed_tasks += 1.0;
-                        let _ = tx.send(AppMessage::Progress(completed_tasks / total_tasks));
-                        let _ = tx.send(AppMessage::Log(format!("  ✅ {} Completed ({})", action_id, filename)));
+                for (i, action_id) in actions.iter().enumerate() {
+                    let is_last_action = i == actions.len() - 1;
+                    
+                    let _ = tx.send(AppMessage::Log(format!("    [{}] 步骤 {}/{}: {}", filename, i + 1, actions.len(), action_id)));
+                    
+                    // 执行动作 - 动作会自动生成输出文件
+                    let result = Self::execute_action_static(action_id, &current_input, &out_path, &config);
+                    
+                    match result {
+                        Ok(_) => {
+                            // 动作执行成功，现在需要找到生成的文件
+                            // 动作会生成 {原文件名}_{动作名}.{扩展名} 格式的文件
+                            
+                            // 先保存当前的文件名信息（避免借用问题）
+                            let current_ext = current_input.extension().and_then(|e| e.to_str()).unwrap_or("mp4").to_string();
+                            let current_stem = current_input.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
+                            
+                            // 如果是最后一个动作，使用_processed后缀
+                            let output_filename = if is_last_action {
+                                format!("{}_processed.{}", current_stem, current_ext)
+                            } else {
+                                format!("{}_{}.{}", current_stem, action_id, current_ext)
+                            };
+                            
+                            let output_path = out_path.join(&output_filename);
+                            
+                            // 检查文件是否存在
+                            if output_path.exists() {
+                                if !is_last_action {
+                                    temp_files.push(output_path.clone());
+                                }
+                                
+                                // 如果是最后一个动作，重命名为_processed后缀
+                                if is_last_action {
+                                    let final_filename = format!("{}_processed.{}", current_stem, current_ext);
+                                    let final_path = out_path.join(&final_filename);
+                                    
+                                    if let Err(e) = fs::rename(&output_path, &final_path) {
+                                        let _ = tx.send(AppMessage::Log(format!("    [{}] ⚠️ 无法重命名为_processed: {}", filename, e)));
+                                        current_input = output_path;
+                                    } else {
+                                        current_input = final_path;
+                                        let _ = tx.send(AppMessage::Log(format!("    [{}] ✅ 已重命名为: {}", filename, final_filename)));
+                                    }
+                                } else {
+                                    current_input = output_path;
+                                }
+                            } else {
+                                // 如果标准命名不存在，尝试查找out_path中的新文件
+                                // 注意：并行模式下 find_newest_video_file 基本不可靠，因为其他线程也在写入
+                                // 所以我们只能尽量依赖 execute_action 返回准确的路径或者标准命名
+                                // 这里我们假设动作实现是标准的，如果找不到文件，那就是出错了
+                                // 但为了兼容之前的逻辑，我们还是保留这个Fallback，但要非常小心
+                                // 实际上最好是让 execute return path. 但为了不改动太多 trait，我们先这样。
+                                // 由于并行，find_newest_video_file 可能会找到别的线程产生的文件，这是个风险点。
+                                // 简单的修复：execute_action 应该保证文件名。
+                                // 我们前面已经看到了 VideoAction 只返回 Result<()>
+                                // 不过我们的 get_dst 是确定的。
+                                
+                                let _ = tx.send(AppMessage::Log(format!("    [{}] ❌ 无法找到动作 {} 的输出文件 (标准命名不存在)", filename, action_id)));
+                                success = false;
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            let _ = tx.send(AppMessage::Log(format!("    [{}] ❌ {} 失败: {}", filename, action_id, e)));
+                            success = false;
+                            break;
+                        }
                     }
-                    Err(e) => {
-                        let _ = tx.send(AppMessage::Log(format!("  ❌ {} Failed ({}): {}", action_id, filename, e)));
+                }
+                
+                // 清理临时文件
+                for temp_file in temp_files {
+                    let _ = fs::remove_file(temp_file);
+                }
+                
+                // 更新进度
+                let completed = completed_tasks.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                let _ = tx.send(AppMessage::Progress(completed as f32 / total_tasks));
+                
+                if success {
+                    let _ = tx.send(AppMessage::Log(format!("  ✅ 叠加处理完成 ({})", filename)));
+                } else {
+                    let _ = tx.send(AppMessage::Log(format!("  ❌ 叠加处理失败 ({})", filename)));
+                }
+            } else {
+                // 原始模式：每个动作生成独立视频
+                for action_id in &actions {
+                    let _ = tx.send(AppMessage::Log(format!("  ⏳ Processing: {} [{}]...", filename, action_id)));
+                    
+                    // Call corresponding action
+                    let result = Self::execute_action_static(action_id, video_path, &out_path, &config);
+                    
+                    // 更新进度
+                    let completed = completed_tasks.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    let _ = tx.send(AppMessage::Progress(completed as f32 / total_tasks));
+                    
+                    match result {
+                        Ok(_) => {
+                            let _ = tx.send(AppMessage::Log(format!("  ✅ {} Completed ({})", action_id, filename)));
+                        }
+                        Err(e) => {
+                            let _ = tx.send(AppMessage::Log(format!("  ❌ {} Failed ({}): {}", action_id, filename, e)));
+                        }
                     }
                 }
             }
-        }
+        });
         
         let _ = tx.send(AppMessage::Finished);
         Ok(())
@@ -1589,6 +1780,43 @@ impl VideoMatrixApp {
         }
         
         video_files
+    }
+    
+    /// 查找输出目录中最新的视频文件（排除当前输入文件）
+    fn find_newest_video_file(out_dir: &Path, current_input: &Path) -> Option<PathBuf> {
+        let video_extensions = vec!["mp4", "mov", "mkv", "avi", "wmv", "flv", "webm", "m4v"];
+        let mut newest_file: Option<PathBuf> = None;
+        let mut newest_mtime: Option<std::time::SystemTime> = None;
+        
+        if let Ok(entries) = fs::read_dir(out_dir) {
+            for entry in entries.flatten() {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_file() {
+                        // 排除当前输入文件
+                        if entry.path() == *current_input {
+                            continue;
+                        }
+                        
+                        // 检查文件扩展名
+                        if let Some(ext) = entry.path().extension() {
+                            if let Some(ext_str) = ext.to_str() {
+                                if video_extensions.contains(&ext_str.to_lowercase().as_str()) {
+                                    // 获取修改时间
+                                    if let Ok(mtime) = metadata.modified() {
+                                        if newest_mtime.is_none() || mtime > newest_mtime.unwrap() {
+                                            newest_mtime = Some(mtime);
+                                            newest_file = Some(entry.path());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        newest_file
     }
     
     fn execute_action_static(action_id: &str, src: &Path, out_dir: &Path, config: &ActionConfig) -> anyhow::Result<()> {

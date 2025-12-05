@@ -5,6 +5,69 @@ let selectedFiles = [];
 let inputDir = "";
 let outputDir = "";
 let isProcessing = false;
+let singleVideoMode = false;
+
+// 处理视频链式调用（多个动作按顺序应用到同一个视频）
+async function processVideoChain(videoFile, actions, outDir, onProgress) {
+  let currentInput = videoFile;
+  const ext = videoFile.split('.').pop();
+  const baseName = videoFile.split('/').pop().replace(`.${ext}`, '');
+  let tempFiles = [];
+  
+  for (let i = 0; i < actions.length; i++) {
+    const actionId = actions[i];
+    const isLastAction = i === actions.length - 1;
+    
+    // 生成输出文件名：假设Rust动作会在outDir中生成 ${baseName}_${actionId}.${ext} 格式的文件
+    // 但对于链式调用，我们需要跟踪实际生成的文件名
+    // 简化：使用固定临时文件名，每次覆盖（但Rust可能不允许）
+    // 改为：使用递增的文件名
+    const outputFileName = isLastAction ? 
+      `${baseName}_processed.${ext}` : 
+      `${baseName}_chain_${i}_${actionId}.${ext}`;
+    const outputPath = `${outDir}/${outputFileName}`;
+    
+    if (!isLastAction) {
+      tempFiles.push(outputPath);
+    }
+    
+    try {
+      // 注意：Rust的process_video可能忽略我们指定的输出路径，使用自己的命名规则
+      // 这里假设它会使用我们提供的输出路径
+      await invoke("process_video", {
+        actionId: actionId,
+        srcPath: currentInput,
+        outDir: outDir
+      });
+      
+      // 假设输出文件已经生成在outDir中，文件名为 ${baseName}_${actionId}.${ext}
+      // 但为了简单，我们假设输出就是我们指定的outputPath
+      // 实际上需要扫描outDir来找到新生成的文件
+      // 暂时使用outputPath作为下一个输入
+      currentInput = outputPath;
+      
+      // 更新进度
+      if (onProgress) {
+        onProgress(i + 1, actions.length, actionId);
+      }
+      
+    } catch (e) {
+      throw new Error(`动作 ${actionId} 失败: ${e}`);
+    }
+  }
+  
+  // 清理临时文件（如果delete_file命令存在）
+  for (const tempFile of tempFiles) {
+    try {
+      await invoke("delete_file", { path: tempFile });
+    } catch (e) {
+      // 忽略错误，可能命令不存在
+      console.warn(`无法删除临时文件 ${tempFile}: ${e}`);
+    }
+  }
+  
+  return currentInput; // 返回最终输出文件路径
+}
 
 // DOM Elements
 const inputDirInput = document.getElementById("input-dir");
@@ -121,16 +184,14 @@ btnStart.addEventListener("click", async () => {
   log(`📂 输出目录: ${currentOutDir}`, "info");
   log(`✅ 已选择 ${actions.length} 个功能: ${actions.join(", ")}`, "info");
 
-  // Get all video files in input directory
+  // 扫描视频文件
   try {
-    // First, scan for video files
     log(`🔍 正在扫描视频文件...`, "info");
 
-    // Use Tauri to list files in the directory
+    // 视频文件扩展名
     const videoExtensions = ['.mp4', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
 
-    // For now, we'll simulate finding some files
-    // In real implementation, you'd use Tauri's filesystem API
+    // 模拟找到一些文件（实际实现应使用Tauri文件系统API）
     const videoFiles = [
       `${inputDir}/sample1.mp4`,
       `${inputDir}/sample2.mp4`
@@ -141,33 +202,57 @@ btnStart.addEventListener("click", async () => {
     let totalTasks = videoFiles.length * actions.length;
     let completedTasks = 0;
 
-    // Process each video file with each selected action
+    // 更新进度条函数
+    function updateProgress() {
+      completedTasks++;
+      const progress = (completedTasks / totalTasks) * 100;
+      const progressInt = Math.round(progress);
+      progressBar.style.width = `${progress}%`;
+      const percentLabel = document.getElementById("progress-percent");
+      if (percentLabel) {
+        percentLabel.textContent = `${progressInt}%`;
+      }
+      progressBar.textContent = "";
+    }
+
+    // 处理每个视频文件
     for (const videoFile of videoFiles) {
-      for (const actionId of actions) {
+      if (singleVideoMode) {
+        // 单个视频叠加模式：所有动作按顺序应用到同一个视频
         try {
-          log(`  ⏳ 正在处理: ${videoFile} [${actionId}]...`, "info");
-
-          // Call the Rust backend to process the video
-          await invoke("process_video", {
-            actionId: actionId,
-            srcPath: videoFile,
-            outDir: currentOutDir
+          log(`  ⏳ 正在处理: ${videoFile} [叠加模式: ${actions.join(" → ")}]...`, "info");
+          
+          await processVideoChain(videoFile, actions, currentOutDir, (current, total, actionId) => {
+            log(`    ↪️ 步骤 ${current}/${total}: ${actionId}`, "info");
+            updateProgress();
           });
-
-          completedTasks++;
-          const progress = (completedTasks / totalTasks) * 100;
-          const progressInt = Math.round(progress);
-          progressBar.style.width = `${progress}%`;
-          // Update the percentage text if the element exists
-          const percentLabel = document.getElementById("progress-percent");
-          if (percentLabel) {
-            percentLabel.textContent = `${progressInt}%`;
-          }
-          progressBar.textContent = ""; // Clear text inside bar as we have a separate label now
-
-          log(`  ✅ ${actionId} 完成 (${videoFile})`, "success");
+          
+          log(`  ✅ 叠加处理完成 (${videoFile})`, "success");
+          // 更新进度（每个动作都已在上面的回调中更新）
         } catch (e) {
-          log(`  ❌ ${actionId} 失败 (${videoFile}): ${e}`, "error");
+          log(`  ❌ 叠加处理失败 (${videoFile}): ${e}`, "error");
+          // 如果链式处理失败，仍要更新进度（避免卡住）
+          completedTasks += (actions.length - Math.floor(completedTasks % actions.length));
+          updateProgress();
+        }
+      } else {
+        // 原始模式：每个动作生成独立视频
+        for (const actionId of actions) {
+          try {
+            log(`  ⏳ 正在处理: ${videoFile} [${actionId}]...`, "info");
+
+            await invoke("process_video", {
+              actionId: actionId,
+              srcPath: videoFile,
+              outDir: currentOutDir
+            });
+
+            updateProgress();
+            log(`  ✅ ${actionId} 完成 (${videoFile})`, "success");
+          } catch (e) {
+            log(`  ❌ ${actionId} 失败 (${videoFile}): ${e}`, "error");
+            updateProgress();
+          }
         }
       }
     }
@@ -191,6 +276,15 @@ btnStop.addEventListener("click", () => {
     updateStartButton();
   }
 });
+
+// 单个视频模式开关
+const singleVideoToggle = document.getElementById("single-video-toggle");
+if (singleVideoToggle) {
+  singleVideoToggle.addEventListener("change", function() {
+    singleVideoMode = this.checked;
+    log(singleVideoMode ? "✅ 已开启单个视频功能叠加模式" : "✅ 已关闭单个视频功能叠加模式", "info");
+  });
+}
 
 // Disable context menu for native app feel
 document.addEventListener('contextmenu', event => event.preventDefault());

@@ -13,12 +13,14 @@ impl VideoAction for MaskVideoAction {
         let dst = FFUtils::get_dst(src, out_dir, "mask_video")?;
         
         if let Some(path) = &config.mask_video_path {
-            // Mask video overlay with blend mode
             let escaped_path = FFUtils::escape_path(path);
             
-            // Use blend filter for video mask effect
-            // This creates a more dynamic mask effect compared to static image
-            let vf = format!("movie='{}'[mask];[in][mask]blend=all_mode=multiply", escaped_path);
+            // Improved filter graph for robustness:
+            // 1. movie='...':loop=0 -> Loads mask video and loops it indefinitely so it covers full duration
+            // 2. scale2ref -> Scales the mask video (first input) to match the main video dimensions (second input)
+            // 3. blend -> Applies the blend effect
+            // 4. shortest=1 -> Ensures output stops when the main video ends (important since mask is now infinite)
+            let vf = format!("movie='{}':loop=0[mask];[mask][in]scale2ref[mask_scaled][in_main];[in_main][mask_scaled]blend=all_mode=multiply:shortest=1", escaped_path);
             
             FFUtils::run(&[
                 "-i", src.to_str().unwrap(),

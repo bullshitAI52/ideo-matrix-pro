@@ -348,3 +348,64 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #4f4f4f;
 }
+
+/* 单个视频功能叠加开关 */
+.single-video-toggle {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.toggle-label input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 36px;
+  height: 18px;
+  background-color: var(--bg-input);
+  border-radius: 9px;
+  transition: background-color 0.3s;
+}
+
+.toggle-slider:before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  top: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s;
+}
+
+.toggle-label input:checked + .toggle-slider {
+  background-color: var(--accent);
+}
+
+.toggle-label input:checked + .toggle-slider:before {
+  transform: translateX(18px);
+}
+
+.toggle-text {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.toggle-description {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}

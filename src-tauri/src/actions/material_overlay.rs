@@ -50,9 +50,11 @@ impl VideoAction for PipAction {
         let dst = FFUtils::get_dst(src, out_dir, "pip")?;
         
         if let Some(path) = &config.pip_path {
-            // Picture-in-Picture: overlay video in bottom-right corner, scaled to 25%
+            // Picture-in-Picture: robust scaling relative to main video
+            // 1. scale2ref=w=iw/4:h=-1 -> Scale PIP to 1/4th of main video width, maintain aspect ratio
+            // 2. overlay -> Place in bottom-right with padding
             let escaped_path = FFUtils::escape_path(path);
-            let vf = format!("movie='{}',scale=iw*0.25:ih*0.25[pip];[in][pip]overlay=W-w-10:H-h-10", escaped_path);
+            let vf = format!("movie='{}'[pip];[pip][in]scale2ref=w=iw/4:h=ow/mdar[pip_scaled][in_main];[in_main][pip_scaled]overlay=W-w-20:H-h-20", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback
@@ -76,9 +78,11 @@ impl VideoAction for LightEffectAction {
         let dst = FFUtils::get_dst(src, out_dir, "light")?;
         
         if let Some(path) = &config.light_effect_path {
-            // Light effect overlay: blend mode for additive light effect
+            // Light effect: auto-loop and auto-scale to fill screen
             let escaped_path = FFUtils::escape_path(path);
-            let vf = format!("movie='{}'[light];[in][light]overlay=0:0:format=auto", escaped_path);
+            // Use screen blending for light effects (better for black background overlays), or simple overlay if transparent
+            // Here we use scale2ref to fill screen and 'shortest=1' to match main video duration
+            let vf = format!("movie='{}':loop=0[light];[light][in]scale2ref[light_scaled][in_main];[in_main][light_scaled]blend=all_mode=screen:shortest=1", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback: add brightness/glow effect
@@ -94,9 +98,10 @@ impl VideoAction for GoodsTemplateAction {
         let dst = FFUtils::get_dst(src, out_dir, "goods")?;
         
         if let Some(path) = &config.goods_path {
-            // Goods template: overlay template on top (assuming template has transparency)
+            // Goods template: auto-scale to fit screen
             let escaped_path = FFUtils::escape_path(path);
-            let vf = format!("movie='{}'[template];[in][template]overlay=0:0", escaped_path);
+            // using scale2ref to ensure template matches video size exactly
+            let vf = format!("movie='{}'[template];[template][in]scale2ref[template_scaled][in_main];[in_main][template_scaled]overlay=0:0:shortest=1", escaped_path);
             FFUtils::run(&["-y", "-i", src.to_str().unwrap(), "-vf", &vf, "-c:a", "copy", "-loglevel", "error", dst.to_str().unwrap()])
         } else {
             // Fallback

@@ -12,8 +12,9 @@ impl VideoAction for AbChromaAction {
     fn execute(&self, src: &Path, out_dir: &Path, _config: &ActionConfig) -> Result<()> {
         let dst = FFUtils::get_dst(src, out_dir, "ab_chroma")?;
         
-        // Chromatic aberration effect using split and shift
-        let filter_complex = "[0:v]split=3[r][g][b];[r]lutrgb=r=val:g=0:b=0[r_only];[g]lutrgb=r=0:g=val:b=0,crop=iw:ih:2:0[g_shift];[b]lutrgb=r=0:g=0:b=val,crop=iw:ih:-2:0[b_shift];[r_only][g_shift]blend=all_mode=addition[rg];[rg][b_shift]blend=all_mode=addition";
+        // Chromatic aberration effect using chromashift (works on YUV, efficient and robust)
+        // cb/cr shift values create the color fringe
+        let filter_complex = "chromashift=cb=4:cr=-4:edge=smear";
         
         FFUtils::run(&[
             "-y",
