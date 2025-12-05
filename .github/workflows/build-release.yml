@@ -53,38 +53,27 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Prepare FFmpeg for bundling
+        shell: pwsh
+        run: |
+          Write-Host "Preparing FFmpeg binaries..."
+          
+          # 确保目录存在
+          New-Item -ItemType Directory -Force -Path "src-tauri\binaries"
+          
+          # 复制到 src-tauri/binaries，供 Tauri 打包使用
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg.exe" -Force
+          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe.exe" -Force
+          
+          Write-Host "FFmpeg binaries ready for bundling:"
+          Get-ChildItem "src-tauri\binaries"
+
       - name: Build Tauri app
         run: |
           echo "Starting Tauri build..."
           npm run tauri build -- --verbose
         env:
           RUST_BACKTRACE: 1
-
-      - name: Bundle FFmpeg with installer
-        shell: pwsh
-        run: |
-          Write-Host "Bundling FFmpeg with the application..."
-          
-          # Find the built executable directory
-          $releaseDir = "src-tauri\target\release"
-          
-          # Copy FFmpeg binaries next to the executable
-          Write-Host "Copying FFmpeg binaries..."
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg.exe" -Force
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe.exe" -Force
-          Write-Host "FFmpeg copied to binaries directory"
-          
-          # Also copy to NSIS installer directory if it exists
-          $nsisDir = "src-tauri\target\release\bundle\nsis"
-          if (Test-Path $nsisDir) {
-            Get-ChildItem -Path $nsisDir -Filter "*.exe" | ForEach-Object {
-              $installerDir = $_.DirectoryName
-              Write-Host "Found installer at: $installerDir"
-            }
-          }
-          
-          # For MSI, we need to rebuild with FFmpeg included
-          # The files will be picked up from the release directory
 
       - name: List build outputs
         if: always()
