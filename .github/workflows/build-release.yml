@@ -40,15 +40,12 @@ jobs:
           Write-Host "Extracting FFmpeg..."
           Expand-Archive -Path "ffmpeg.zip" -DestinationPath "." -Force
           
-          Write-Host "Creating binaries directory..."
-          New-Item -ItemType Directory -Force -Path "src-tauri\binaries"
+          Write-Host "Adding FFmpeg to PATH..."
+          $ffmpegPath = (Get-Item "ffmpeg-7.1-essentials_build\bin").FullName
+          echo "$ffmpegPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           
-          Write-Host "Copying FFmpeg binaries..."
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -Destination "src-tauri\binaries\ffmpeg-x86_64-pc-windows-msvc.exe"
-          Copy-Item -Path "ffmpeg-7.1-essentials_build\bin\ffprobe.exe" -Destination "src-tauri\binaries\ffprobe-x86_64-pc-windows-msvc.exe"
-          
-          Write-Host "Verifying files..."
-          Get-ChildItem "src-tauri\binaries"
+          Write-Host "Verifying FFmpeg installation..."
+          & "ffmpeg-7.1-essentials_build\bin\ffmpeg.exe" -version
 
       - name: Install frontend dependencies
         run: npm install
